@@ -160,10 +160,10 @@ AimSettingsBox:AddDropdown("AimbotTargetPart", {
 
 AimSettingsBox:AddSlider("AimbotSmoothness", {
     Text = "Smoothness",
-    Default = 0.5,
-    Min = 0.01,
-    Max = 1,
-    Rounding = 2,
+    Default = 2,
+    Min = 1,
+    Max = 20,
+    Rounding = 1,
     Callback = function(Value) updateAimbotSetting("Smoothness", Value) end
 })
 
