@@ -13,148 +13,129 @@ Aimbot.Settings = {
 }
 
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
 FOVCircle.Thickness = 1
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 
 local connection
-local aiming = false
-local currentTarget = nil
+local StickyTarget = nil
+local AimActive = false
 
--- IMPORTANT: Do not use gameProcessed here. If we do, right-clicking in Roblox (which spins the camera) 
--- will be flagged as "processed" and the aimbot will NEVER activate!
-UIS.InputBegan:Connect(function(input, gameProcessed)
+-- Keybind Listeners
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
-        aiming = true
+        AimActive = true
     end
 end)
 
-UIS.InputEnded:Connect(function(input, gameProcessed)
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
     if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
-        aiming = false
-        currentTarget = nil
+        AimActive = false
     end
 end)
 
-local function isVisible(targetPart)
-    if not Aimbot.Settings.WallCheck then return true end
-    local origin = Camera.CFrame.Position
-    local direction = (targetPart.Position - origin)
+-- Advanced Team Check
+local function IsTeammate(Player)
+    if not Aimbot.Settings.TeamCheck then return false end
     
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {Player.Character, Camera}
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.IgnoreWater = true
+    if Player.Team == LocalPlayer.Team and Player.Team ~= nil then
+        return true
+    end
+    
+    if Player:GetAttribute("Team") == LocalPlayer:GetAttribute("Team") and Player:GetAttribute("Team") ~= nil then
+        return true
+    end
 
-    local result = workspace:Raycast(origin, direction, raycastParams)
-    if result then
-        if result.Instance:IsDescendantOf(targetPart.Parent) then
+    local Char = Player.Character
+    if Char then
+        local HRP = Char:FindFirstChild("HumanoidRootPart")
+        if HRP and (HRP:FindFirstChild("teamatelabel") or HRP:FindFirstChild("TeammateLabel") or HRP:FindFirstChild("Marker")) then
             return true
         end
-        return false
+        
+        local Head = Char:FindFirstChild("Head")
+        if Head and (Head:FindFirstChild("TeammateLabel") or Head:FindFirstChild("FriendMarker")) then
+            return true
+        end
+
+        for _, child in pairs(Char:GetDescendants()) do
+            if child:IsA("BillboardGui") and (child.Name:lower():find("team") or child.Name:lower():find("friend")) then
+                return true
+            end
+        end
     end
-    return true
+    
+    return false
 end
 
-local function getClosestTarget()
-    local closestDistance = Aimbot.Settings.FOVRadius
-    local target = nil
-    
-    local mousePos = UIS:GetMouseLocation()
-
-    for _, v in ipairs(Players:GetPlayers()) do
-        if v ~= Player then
-            local char = v.Character
-            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char:FindFirstChild(Aimbot.Settings.TargetPart) then
-                
-                -- Team Check
-                if Aimbot.Settings.TeamCheck then
-                    local sameTeam = false
-                    if v.Team and Player.Team and v.Team == Player.Team then
-                        sameTeam = true
-                    end
-                    if sameTeam then continue end
+-- Exact Targeting Loop
+local function GetClosestTarget()
+    local Target, Closest = nil, Aimbot.Settings.FOVRadius
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            
+            if IsTeammate(p) then continue end
+            
+            local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            if OnScreen then
+                if Aimbot.Settings.WallCheck then
+                    local Parts = Camera:GetPartsObscuringTarget({p.Character.HumanoidRootPart.Position}, {LocalPlayer.Character, p.Character})
+                    if #Parts > 0 then continue end
                 end
 
-                local targetPart = char[Aimbot.Settings.TargetPart]
-                local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                
-                if onScreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                    if dist < closestDistance then
-                        if isVisible(targetPart) then
-                            closestDistance = dist
-                            target = targetPart
-                        end
-                    end
+                local Dist = (Vector2.new(Pos.X, Pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if Dist < Closest then
+                    Closest = Dist
+                    Target = p
                 end
             end
         end
     end
-    return target
-end
-
-local function isValidTarget(targetPart)
-    if not targetPart or not targetPart.Parent then return false end
-    local hum = targetPart.Parent:FindFirstChild("Humanoid")
-    if not hum or hum.Health <= 0 then return false end
-    
-    -- Check if still on screen and in FOV
-    local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-    if not onScreen then return false end
-    
-    local mousePos = UIS:GetMouseLocation()
-    local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-    if dist > Aimbot.Settings.FOVRadius then return false end
-    
-    if not isVisible(targetPart) then return false end
-    
-    return true
+    return Target
 end
 
 function Aimbot:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
-            connection = RS.RenderStepped:Connect(function(deltaTime)
-                -- Update FOV Circle
-                local mousePos = UIS:GetMouseLocation()
-                FOVCircle.Position = mousePos
+            connection = RS.RenderStepped:Connect(function()
+                FOVCircle.Visible = (Aimbot.Settings.ShowFOV and true or false)
+                FOVCircle.Position = UserInputService:GetMouseLocation()
                 FOVCircle.Radius = Aimbot.Settings.FOVRadius
                 FOVCircle.Color = Aimbot.Settings.FOVColor
-                FOVCircle.Visible = Aimbot.Settings.ShowFOV
 
-                if aiming then
-                    -- Sticky Aim: If we don't have a target, or the current target is no longer valid, find a new one
-                    if not currentTarget or not isValidTarget(currentTarget) then
-                        currentTarget = getClosestTarget()
-                    end
+                if AimActive then
+                    local NewTarget = GetClosestTarget()
+                    if NewTarget then StickyTarget = NewTarget end
+                end
 
-                    if currentTarget then
-                        local Part = currentTarget
-                        local PredPos = Part.Position
-                        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(PredPos)
-                        
+                if StickyTarget then
+                    local Hum = StickyTarget.Character and StickyTarget.Character:FindFirstChild("Humanoid")
+                    if not StickyTarget.Character or not Hum or Hum.Health <= 0 then StickyTarget = nil end
+                end
+                if not AimActive then StickyTarget = nil end
+
+                if AimActive and StickyTarget then
+                    local Part = StickyTarget.Character:FindFirstChild(Aimbot.Settings.TargetPart)
+                    if Part then
+                        local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Part.Position)
                         local smoothVal = math.max(Aimbot.Settings.Smoothness, 1)
 
                         if Aimbot.Settings.AimMethod == "Camera" then
-                            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, PredPos), 1 / smoothVal)
+                            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Part.Position), 1 / smoothVal)
                         end
                         
                         if Aimbot.Settings.AimMethod == "Mouse" and mousemoverel then
-                            local MousePos = UIS:GetMouseLocation()
+                            local MousePos = UserInputService:GetMouseLocation()
                             mousemoverel((ScreenPos.X - MousePos.X) / smoothVal, (ScreenPos.Y - MousePos.Y) / smoothVal)
                         end
                     end
-                else
-                    currentTarget = nil
                 end
             end)
         end
@@ -164,8 +145,8 @@ function Aimbot:Toggle(state)
             connection = nil
         end
         FOVCircle.Visible = false
-        aiming = false
-        currentTarget = nil
+        AimActive = false
+        StickyTarget = nil
     end
 end
 
