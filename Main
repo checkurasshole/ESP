@@ -23,17 +23,18 @@ local Tabs = {
 }
 
 local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
-local RightGroupBox = Tabs.ESP:AddRightGroupbox("Settings", "sliders-horizontal")
+local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 
 local loadedModules = {}
 
--- Scripts that support a color picker
-local colorSupport = { Arrows = true, Chams = true, Name = true, Tracers = true, ViewTracer = true }
--- Scripts that support team check
-local teamSupport = { Arrows = true, Chams = true, Name = true, Tracers = true, ViewTracer = true, Radar = true }
-
 local espScripts = {
 	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
+}
+
+-- ESPs that support team check toggling
+local teamSupport = {
+	Arrows = true, Chams = true, Name = true,
+	Tracers = true, ViewTracer = true, Radar = true,
 }
 
 local function loadESP(name)
@@ -57,13 +58,12 @@ local function loadESP(name)
 end
 
 for _, name in ipairs(espScripts) do
-	local toggle = LeftGroupBox:AddToggle(name .. "Toggle", {
+	LeftGroupBox:AddToggle(name .. "Toggle", {
 		Text = name .. " ESP",
 		Default = false,
 		Tooltip = "Toggle " .. name .. " ESP",
 		Callback = function(Value)
 			if not loadESP(name) then
-				-- revert the toggle if load failed
 				Toggles[name .. "Toggle"]:SetValue(false)
 				return
 			end
@@ -72,34 +72,15 @@ for _, name in ipairs(espScripts) do
 			end
 		end,
 	})
-
-	-- Chain color picker directly onto the toggle (correct Obsidian API)
-	if colorSupport[name] then
-		toggle:AddColorPicker(name .. "Color", {
-			Default = Color3.fromRGB(255, 0, 0),
-			Title = name .. " Color",
-			Callback = function(Value)
-				if loadedModules[name] and loadedModules[name].Settings then
-					loadedModules[name].Settings.Color = Value
-					-- Chams uses FillColor instead
-					if loadedModules[name].Settings.FillColor ~= nil then
-						loadedModules[name].Settings.FillColor = Value
-					end
-				end
-			end,
-		})
-	end
 end
 
--- Team Check toggles in the right group, one per supported ESP
-RightGroupBox:AddLabel("Team Check")
-
+-- Team check toggles (right side)
 for _, name in ipairs(espScripts) do
 	if teamSupport[name] then
 		RightGroupBox:AddToggle(name .. "TeamCheck", {
 			Text = name,
 			Default = true,
-			Tooltip = "Enable team check for " .. name .. " ESP",
+			Tooltip = "Team check for " .. name .. " ESP",
 			Callback = function(Value)
 				if loadedModules[name] and loadedModules[name].Settings then
 					loadedModules[name].Settings.TeamCheck = Value
