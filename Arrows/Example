@@ -37,64 +37,62 @@ end
 
 local function RotateVect(v, a)
     a = RAD(a)
-    local x = v.x * COS(a) - v.y * SIN(a)
-    local y = v.x * SIN(a) + v.y * COS(a)
-    return V2(x, y)
-end
-
-local function DrawTriangle(color)
-    local l = DRAWING("Triangle")
-    l.Visible = false
-    l.Color = color
-    l.Filled = TriangleFilled
-    l.Thickness = TriangleThickness
-    l.Transparency = 1-TriangleTransparency
-    return l
-end
-
-local function AntiA(v)
-    if (not AntiAliasing) then return v end
-    return V2(ROUND(v.x), ROUND(v.y))
+local function NewTriangle()
+    local triangle = Drawing.new("Triangle")
+    triangle.Visible = false
+    triangle.Filled = true
+    triangle.Thickness = 1
+    return triangle
 end
 
 local cache = {}
 local connection
 
-function ESP:Toggle(state)
+function ESP_Module:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= Player then
-                        local char = p.Character
-                        if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
-                            local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
-                            if not vis then
-                                if not cache[p] then cache[p] = DrawTriangle(TriangleColor) end
-                                local arrow = cache[p]
-                                
-                                local rel = GetRelative(char.PrimaryPart.Position, Player.Character)
-                                local direction = rel.unit
-                                if direction.Magnitude > 0 then
-                                    local base  = direction * DistFromCenter
-                                    local sideLength = TriangleWidth/2
-                                    local baseL = base + RotateVect(direction, 90) * sideLength
-                                    local baseR = base + RotateVect(direction, -90) * sideLength
-                                    local tip = direction * (DistFromCenter + TriangleHeight)
-                                    
-                                    arrow.PointA = AntiA(RelativeToCenter(baseL))
-                                    arrow.PointB = AntiA(RelativeToCenter(baseR))
-                                    arrow.PointC = AntiA(RelativeToCenter(tip))
-                                    arrow.Visible = true
-                                else
-                                    arrow.Visible = false
+                for _, v in ipairs(Players:GetPlayers()) do
+                    if v ~= Player then
+                        local char = v.Character
+                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
+                            local rootPos, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+                            if not onScreen then
+                                if not cache[v] then
+                                    cache[v] = NewTriangle()
                                 end
-                            else
-                                if cache[p] then cache[p].Visible = false end
+                                local arrow = cache[v]
+                                
+                                local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                                local direction = (Vector2.new(rootPos.X, rootPos.Y) - center).Unit
+                                local angle = math.atan2(direction.Y, direction.X)
+                                
+                                local distance = ESP_Module.Settings.Radius
+                                local point1 = center + Vector2.new(math.cos(angle), math.sin(angle)) * distance
+                                local point2 = center + Vector2.new(math.cos(angle - 0.2), math.sin(angle - 0.2)) * (distance - ESP_Module.Settings.Size)
+                                local point3 = center + Vector2.new(math.cos(angle + 0.2), math.sin(angle + 0.2)) * (distance - ESP_Module.Settings.Size)
+                                
+                                local clr = ESP_Module.Settings.Color
+                                if ESP_Module.Settings.TeamCheck and v.TeamColor ~= Player.TeamColor then
+                                    clr = Color3.fromRGB(255, 0, 0)
+                                elseif ESP_Module.Settings.TeamCheck and v.TeamColor == Player.TeamColor then
+                                    clr = Color3.fromRGB(0, 255, 0)
+                                end
+                                if ESP_Module.Settings.TeamColor and v.TeamColor then
+                                    clr = v.TeamColor.Color
+                                end
+                                
+                                arrow.PointA = point1
+                                arrow.PointB = point2
+                                arrow.PointC = point3
+                                arrow.Color = clr
+                                arrow.Visible = true
+                            else 
+                                if cache[v] then cache[v].Visible = false end
                             end
-                        else
-                            if cache[p] then cache[p].Visible = false end
+                        else 
+                            if cache[v] then cache[v].Visible = false end
                         end
                     end
                 end
@@ -121,4 +119,4 @@ function ESP:Toggle(state)
     end
 end
 
-return ESP
+return ESP_Module

@@ -26,7 +26,7 @@ local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
 
 local loadedModules = {}
 local espScripts = {
-    "Arrows", "Chams", "Name", "Radar", "Skeleton", "ViewTracer", "XCT"
+    "Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
 }
 
 for _, name in ipairs(espScripts) do
@@ -57,6 +57,26 @@ for _, name in ipairs(espScripts) do
             end
         end,
     })
+end
+
+local RightGroupBox = Tabs.ESP:AddRightGroupbox("Colors & Settings", "palette")
+
+for _, name in ipairs(espScripts) do
+    if name == "Arrows" or name == "Chams" or name == "Name" or name == "Tracers" or name == "ViewTracer" then
+        RightGroupBox:AddColorPicker(name .. "Color", {
+            Default = Color3.fromRGB(255, 0, 0),
+            Title = name .. " Color",
+            Transparency = nil,
+            Callback = function(Value)
+                if loadedModules[name] and loadedModules[name].Settings then
+                    loadedModules[name].Settings.Color = Value
+                    if loadedModules[name].Settings.FillColor then
+                        loadedModules[name].Settings.FillColor = Value
+                    end
+                end
+            end
+        })
+    end
 end
 
 -- UI Settings

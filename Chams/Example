@@ -1,6 +1,6 @@
 local ESP_Module = {Enabled = false}
 
-local Settings = {
+ESP_Module.Settings = {
     FillColor = Color3.fromRGB(255, 0, 0),
     FillTransparency = 0.5,
     OutlineColor = Color3.fromRGB(255, 255, 255),

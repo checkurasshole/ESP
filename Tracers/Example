@@ -4,7 +4,6 @@ ESP_Module.Settings = {
     Color = Color3.fromRGB(255, 0, 0),
     Thickness = 1.5,
     Transparency = 1,
-    Length = 10,
     TeamCheck = true,
     TeamColor = false,
 }
@@ -31,15 +30,11 @@ function ESP_Module:Toggle(state)
                 for _, v in ipairs(Players:GetPlayers()) do
                     if v ~= Player then
                         local char = v.Character
-                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
-                            local head = char.Head
-                            local lookVector = head.CFrame.LookVector
-                            local targetPos = head.Position + (lookVector * ESP_Module.Settings.Length)
+                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
+                            local rootPart = char.HumanoidRootPart
+                            local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
                             
-                            local headPos, onScreen1 = Camera:WorldToViewportPoint(head.Position)
-                            local endPos, onScreen2 = Camera:WorldToViewportPoint(targetPos)
-                            
-                            if onScreen1 or onScreen2 then
+                            if onScreen then
                                 if not cache[v] then
                                     cache[v] = NewLine()
                                 end
@@ -60,8 +55,8 @@ function ESP_Module:Toggle(state)
                                 line.Thickness = ESP_Module.Settings.Thickness
                                 line.Transparency = ESP_Module.Settings.Transparency
                                 
-                                line.From = Vector2.new(headPos.X, headPos.Y)
-                                line.To = Vector2.new(endPos.X, endPos.Y)
+                                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                                line.To = Vector2.new(rootPos.X, rootPos.Y)
                                 line.Visible = true
                             else 
                                 if cache[v] then cache[v].Visible = false end
@@ -86,9 +81,7 @@ function ESP_Module:Toggle(state)
             connection = nil
         end
         for p, line in pairs(cache) do
-            if line and type(line.Remove) == "function" then
-                line:Remove()
-            end
+            if line then line:Remove() end
         end
         table.clear(cache)
     end
