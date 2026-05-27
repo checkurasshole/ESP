@@ -1,3 +1,8 @@
+local ESP = {Enabled = false}
+function ESP:Toggle(state)
+    self.Enabled = state
+end
+
 -- Made by Blissful#4992
 
 local DistFromCenter = 80
@@ -74,7 +79,7 @@ local function ShowArrow(PLAYER)
 
                 if HUM and CHAR.PrimaryPart ~= nil and HUM.Health > 0 then
                     local _,vis = Camera:WorldToViewportPoint(CHAR.PrimaryPart.Position)
-                    if vis == false then
+                    if vis == false and ESP.Enabled then
                         local rel = GetRelative(CHAR.PrimaryPart.Position, Player.Character)
                         local direction = rel.unit
 
@@ -119,3 +124,5 @@ Players.PlayerAdded:Connect(function(v)
         ShowArrow(v)
     end
 end)
+
+return ESP

@@ -1,3 +1,8 @@
+local ESP_Module = {Enabled = false}
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+end
+
 --//Made by Blissful#4992
 local settings = {
     Color = Color3.fromRGB(255, 0, 0),
@@ -41,7 +46,7 @@ for i, v in pairs(game:GetService("Players"):GetPlayers()) do
     local function ESP()
         local connection
         connection = game:GetService("RunService").RenderStepped:Connect(function()
-            if v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v.Name ~= player.Name and v.Character.Humanoid.Health > 0 then
+            if ESP_Module.Enabled and v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v.Name ~= player.Name and v.Character.Humanoid.Health > 0 then
                 local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
                 if OnScreen then
                     library.name.Text = v.Name
@@ -78,7 +83,7 @@ game.Players.PlayerAdded:Connect(function(newplr)
     local function ESP()
         local connection
         connection = game:GetService("RunService").RenderStepped:Connect(function()
-            if newplr.Character ~= nil and newplr.Character:FindFirstChild("Humanoid") ~= nil and newplr.Character:FindFirstChild("HumanoidRootPart") ~= nil and newplr.Name ~= player.Name and newplr.Character.Humanoid.Health > 0 then
+            if ESP_Module.Enabled and newplr.Character ~= nil and newplr.Character:FindFirstChild("Humanoid") ~= nil and newplr.Character:FindFirstChild("HumanoidRootPart") ~= nil and newplr.Name ~= player.Name and newplr.Character.Humanoid.Health > 0 then
                 local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(newplr.Character.HumanoidRootPart.Position)
                 if OnScreen then
                     library.name.Text = newplr.Name
@@ -106,3 +111,5 @@ game.Players.PlayerAdded:Connect(function(newplr)
     end
     coroutine.wrap(ESP)()
 end)
+
+return ESP_Module

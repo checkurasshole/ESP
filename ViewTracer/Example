@@ -1,3 +1,8 @@
+local ESP_Module = {Enabled = false}
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+end
+
 -- Preview: https://gyazo.com/02cfb4aa8659ba5f6ee67a90514cc34d
 -- Made by Blissful#4992
 local Settings = {
@@ -9,7 +14,7 @@ local Settings = {
     Smoothness = 0.2 -- 0.01 - Less Smooth(Faster), 1 - Smoother (Slower)
 }
 
-local toggle = true -- use this variable if you wanna integrate into a GUI
+local toggle = false -- use this variable if you wanna integrate into a GUI
 
 local player = game:GetService("Players").LocalPlayer
 local camera = game:GetService("Workspace").CurrentCamera
@@ -26,7 +31,7 @@ local function ESP(plr) --//Main function handling specific plr loop esp for lin
     local function Updater() --// Function to update the ESP therefore, line destinations etc every /render/
         local connection
         connection = game:GetService("RunService").RenderStepped:Connect(function() -- Putting function in a connection var in order to disconnect if needed, to save performance
-            if toggle and plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
+            if ESP_Module.Enabled and plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
                 local headpos, OnScreen = camera:WorldToViewportPoint(plr.Character.Head.Position)
                 if OnScreen then -- checks if player is on screen or not
                     local offsetCFrame = CFrame.new(0, 0, -Settings.Length)
@@ -73,3 +78,5 @@ game.Players.PlayerAdded:Connect(function(newplr)
         coroutine.wrap(ESP)(newplr)
     end
 end)
+
+return ESP_Module

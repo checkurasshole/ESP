@@ -1,10 +1,31 @@
+local ESP_Module = {Enabled = false}
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
 
-
 local Skeletons = {}
-for _, Player in next, game.Players:GetChildren() do
-	table.insert(Skeletons, Library:NewSkeleton(Player, true));
+
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+    if state then
+        for _, Player in next, game.Players:GetChildren() do
+            table.insert(Skeletons, Library:NewSkeleton(Player, true))
+        end
+    else
+        for _, skeleton in ipairs(Skeletons) do
+            if skeleton and type(skeleton.Remove) == "function" then
+                skeleton:Remove()
+            end
+            if skeleton and type(skeleton.Destroy) == "function" then
+                skeleton:Destroy()
+            end
+        end
+        Skeletons = {}
+    end
 end
+
 game.Players.PlayerAdded:Connect(function(Player)
-	table.insert(Skeletons, Library:NewSkeleton(Player, true));
+    if ESP_Module.Enabled then
+        table.insert(Skeletons, Library:NewSkeleton(Player, true))
+    end
 end)
+
+return ESP_Module

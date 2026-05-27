@@ -1,3 +1,8 @@
+local ESP_Module = {Enabled = false}
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+end
+
 -- Services
 local RunService = game:GetService("RunService");
 local PlayersService = game:GetService("Players");
@@ -108,6 +113,20 @@ local function DrawEsp(Player)
 end;
 
 local function BoxEsp()
+    if not ESP_Module.Enabled then
+        for i = 1, #Lines do
+            local Line = rawget(Lines, i);
+            if (Line) then Line:Remove(); end;
+        end;
+        Lines = {};
+        for i = 1, #Quads do
+            local Quad = rawget(Quads, i);
+            if (Quad) then Quad:Remove(); end;
+        end;
+        Quads = {};
+        return
+    end
+
     local Players = PlayersService:GetPlayers();
 
     for i = 1, #Lines do
@@ -134,3 +153,5 @@ end;
 
 -- Main
 RunService.RenderStepped:Connect(BoxEsp);
+
+return ESP_Module

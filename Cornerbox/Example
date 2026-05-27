@@ -1,3 +1,8 @@
+local ESP = {Enabled = false}
+function ESP:Toggle(state)
+    self.Enabled = state
+end
+
 -- Settings
 local Settings = {
     Box_Color = Color3.fromRGB(255, 0, 0),
@@ -79,7 +84,7 @@ local function Main(plr)
     local function Updater()
         local c 
         c = game:GetService("RunService").RenderStepped:Connect(function()
-            if plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
+            if ESP.Enabled and plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
                 local Hum = plr.Character
                 local HumPos, vis = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position)
                 if vis then
@@ -168,3 +173,5 @@ end
 game:GetService("Players").PlayerAdded:Connect(function(newplr)
     coroutine.wrap(Main)(newplr)
 end)
+
+return ESP

@@ -1,16 +1,29 @@
--- xiba 4/4/2023
--- join XCT for more scripts
--- https://discord.gg/Dgp598affj
+local ESP_Module = {Enabled = false}
 
 local function ApplyESP(v)
-   if v.Character and v.Character:FindFirstChildOfClass'Humanoid' then
-       v.Character.Humanoid.NameDisplayDistance = 9e9
-       v.Character.Humanoid.NameOcclusion = "NoOcclusion"
-       v.Character.Humanoid.HealthDisplayDistance = 9e9
-       v.Character.Humanoid.HealthDisplayType = "AlwaysOn"
-       v.Character.Humanoid.Health = v.Character.Humanoid.Health -- triggers changed
+   if v.Character and v.Character:FindFirstChildOfClass('Humanoid') then
+       if ESP_Module.Enabled then
+           v.Character.Humanoid.NameDisplayDistance = 9e9
+           v.Character.Humanoid.NameOcclusion = "NoOcclusion"
+           v.Character.Humanoid.HealthDisplayDistance = 9e9
+           v.Character.Humanoid.HealthDisplayType = "AlwaysOn"
+       else
+           v.Character.Humanoid.NameDisplayDistance = 100
+           v.Character.Humanoid.NameOcclusion = "OccludeAll"
+           v.Character.Humanoid.HealthDisplayDistance = 100
+           v.Character.Humanoid.HealthDisplayType = "DisplayWhenDamaged"
+       end
+       v.Character.Humanoid.Health = v.Character.Humanoid.Health
    end
 end
+
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+    for i,v in pairs(game.Players:GetPlayers()) do
+        ApplyESP(v)
+    end
+end
+
 for i,v in pairs(game.Players:GetPlayers()) do
    ApplyESP(v)
    v.CharacterAdded:Connect(function()
@@ -26,3 +39,5 @@ game.Players.PlayerAdded:Connect(function(v)
        ApplyESP(v)
    end)
 end)
+
+return ESP_Module

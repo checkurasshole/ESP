@@ -1,3 +1,8 @@
+local ESP_Module = {Enabled = false}
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+end
+
 -- Made by Blissful#4992
 local Players = game:service("Players")
 local Player = Players.LocalPlayer
@@ -66,7 +71,7 @@ local function PlaceDot(plr)
         local c 
         c = game:service("RunService").RenderStepped:Connect(function()
             local char = plr.Character
-            if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart ~= nil and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+            if ESP_Module.Enabled and char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart ~= nil and char:FindFirstChildOfClass("Humanoid").Health > 0 then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 local scale = RadarInfo.Scale
                 local relx, rely = GetRelative(char.PrimaryPart.Position)
@@ -141,7 +146,16 @@ end)
 coroutine.wrap(function()
     local c 
     c = game:service("RunService").RenderStepped:Connect(function()
+        if not ESP_Module.Enabled then
+            if LocalPlayerDot ~= nil then LocalPlayerDot.Visible = false end
+            RadarBackground.Visible = false
+            RadarBorder.Visible = false
+            return
+        end
+        RadarBackground.Visible = true
+        RadarBorder.Visible = true
         if LocalPlayerDot ~= nil then
+            LocalPlayerDot.Visible = true
             LocalPlayerDot.Color = RadarInfo.LocalPlayerDot
             LocalPlayerDot.PointA = RadarInfo.Position + Vector2.new(0, -6)
             LocalPlayerDot.PointB = RadarInfo.Position + Vector2.new(-3, 6)
@@ -179,7 +193,7 @@ coroutine.wrap(function()
     local dot = NewCircle(1, Color3.fromRGB(255, 255, 255), 3, true, 1)
     local c 
     c = game:service("RunService").RenderStepped:Connect(function()
-        if (Vector2.new(Mouse.X, Mouse.Y + inset.Y) - RadarInfo.Position).magnitude < RadarInfo.Radius then
+        if ESP_Module.Enabled and (Vector2.new(Mouse.X, Mouse.Y + inset.Y) - RadarInfo.Position).magnitude < RadarInfo.Radius then
             dot.Position = Vector2.new(Mouse.X, Mouse.Y + inset.Y)
             dot.Visible = true
         else 
@@ -197,3 +211,5 @@ RadarInfo.Position = Vector2.new(300, 300)
 RadarInfo.Radius = 150
 RadarInfo.RadarBack = Color3.fromRGB(50, 0, 0)
 ]]
+
+return ESP_Module

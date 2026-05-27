@@ -1,3 +1,8 @@
+local ESP_Module = {Enabled = false}
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+end
+
 -- Preview: https://cdn.discordapp.com/attachments/807887111667056680/820258191224340490/chams.png
 -- Made by Blissful#4992
 local Settings = {
@@ -49,7 +54,7 @@ local function ESP(object, plr)
     local function Updater()
         local connection
         connection = game:GetService("RunService").RenderStepped:Connect(function()
-            if plr.Character ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild(object.Name) ~= nil then
+            if ESP_Module.Enabled and plr.Character ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild(object.Name) ~= nil then
                     local partpos, onscreen = camera:WorldToViewportPoint(part.Position)
                     if onscreen then
                         local size_X = part.Size.X/2
@@ -162,3 +167,5 @@ game.Players.PlayerAdded:Connect(function(newplr)
         end
     end)
 end)
+
+return ESP_Module
