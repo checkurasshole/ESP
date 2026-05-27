@@ -1,28 +1,36 @@
+-- Original by Blissful#4992, wrapped as module
+
 local ESP_Module = {Enabled = false}
 
 ESP_Module.Settings = {
-    TeamCheck = true,
-    Color = Color3.fromRGB(255, 255, 255),
-    DistFromCenter = 80,
-    TriangleHeight = 16,
-    TriangleWidth = 16,
+    TeamCheck = false,
 }
+
+local DistFromCenter = 80
+local TriangleHeight = 16
+local TriangleWidth = 16
+local TriangleFilled = true
+local TriangleTransparency = 0
+local TriangleThickness = 1
+local TriangleColor = Color3.fromRGB(255, 255, 255)
+local AntiAliasing = false
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 
-local V2 = Vector2.new
 local V3 = Vector3.new
+local V2 = Vector2.new
 local CF = CFrame.new
 local COS = math.cos
 local SIN = math.sin
 local RAD = math.rad
+local DRAWING = Drawing.new
 local ROUND = math.round
 
 local function GetRelative(pos, char)
-    if not char or not char.PrimaryPart then return V2(0, 0) end
+    if not char then return V2(0,0) end
     local rootP = char.PrimaryPart.Position
     local camP = Camera.CFrame.Position
     local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
@@ -30,26 +38,28 @@ local function GetRelative(pos, char)
 end
 
 local function RelativeToCenter(v)
-    return Camera.ViewportSize / 2 - v
+    return Camera.ViewportSize/2 - v
 end
 
 local function RotateVect(v, a)
     a = RAD(a)
-    local x = v.X * COS(a) - v.Y * SIN(a)
-    local y = v.X * SIN(a) + v.Y * COS(a)
+    local x = v.x * COS(a) - v.y * SIN(a)
+    local y = v.x * SIN(a) + v.y * COS(a)
     return V2(x, y)
 end
 
 local function AntiA(v)
-    return V2(ROUND(v.X), ROUND(v.Y))
+    if not AntiAliasing then return v end
+    return V2(ROUND(v.x), ROUND(v.y))
 end
 
-local function DrawTriangle()
-    local l = Drawing.new("Triangle")
+local function DrawTriangle(color)
+    local l = DRAWING("Triangle")
     l.Visible = false
-    l.Filled = true
-    l.Thickness = 1
-    l.Transparency = 1
+    l.Color = color
+    l.Filled = TriangleFilled
+    l.Thickness = TriangleThickness
+    l.Transparency = 1 - TriangleTransparency
     return l
 end
 
@@ -61,49 +71,48 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, v in ipairs(Players:GetPlayers()) do
-                    if v ~= Player then
-                        local char = v.Character
-                        if char and char:FindFirstChild("Humanoid") and char.PrimaryPart and char.Humanoid.Health > 0 then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= Player then
+                        local char = p.Character
+                        if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
                             local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
                             if not vis then
-                                if not cache[v] then
-                                    cache[v] = DrawTriangle()
+                                if not cache[p] then
+                                    local clr = TriangleColor
+                                    if ESP_Module.Settings.TeamCheck then
+                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                    end
+                                    cache[p] = DrawTriangle(clr)
                                 end
-                                local arrow = cache[v]
+                                local arrow = cache[p]
 
                                 local rel = GetRelative(char.PrimaryPart.Position, Player.Character)
                                 local direction = rel.Unit
                                 if direction.Magnitude > 0 then
-                                    local dist = ESP_Module.Settings.DistFromCenter
-                                    local h    = ESP_Module.Settings.TriangleHeight
-                                    local w    = ESP_Module.Settings.TriangleWidth / 2
+                                    local base  = direction * DistFromCenter
+                                    local sideL = DistFromCenter / 2
+                                    local baseL = base + RotateVect(direction,  90) * (TriangleWidth / 2)
+                                    local baseR = base + RotateVect(direction, -90) * (TriangleWidth / 2)
+                                    local tip   = direction * (DistFromCenter + TriangleHeight)
 
-                                    local base  = direction * dist
-                                    local baseL = base + RotateVect(direction,  90) * w
-                                    local baseR = base + RotateVect(direction, -90) * w
-                                    local tip   = direction * (dist + h)
+                                    local clr = TriangleColor
+                                    if ESP_Module.Settings.TeamCheck then
+                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                    end
+                                    arrow.Color = clr
 
                                     arrow.PointA = AntiA(RelativeToCenter(baseL))
                                     arrow.PointB = AntiA(RelativeToCenter(baseR))
                                     arrow.PointC = AntiA(RelativeToCenter(tip))
-
-                                    local clr = ESP_Module.Settings.Color
-                                    if ESP_Module.Settings.TeamCheck then
-                                        clr = (v.TeamColor == Player.TeamColor)
-                                            and Color3.fromRGB(0, 255, 0)
-                                            or  Color3.fromRGB(255, 0, 0)
-                                    end
-                                    arrow.Color = clr
                                     arrow.Visible = true
                                 else
                                     arrow.Visible = false
                                 end
                             else
-                                if cache[v] then cache[v].Visible = false end
+                                if cache[p] then cache[p].Visible = false end
                             end
                         else
-                            if cache[v] then cache[v].Visible = false end
+                            if cache[p] then cache[p].Visible = false end
                         end
                     end
                 end
