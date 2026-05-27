@@ -3,12 +3,13 @@ local Aimbot = {Enabled = false}
 Aimbot.Settings = {
     AimMethod = "Mouse", -- "Mouse" or "Camera"
     TargetPart = "Head", -- "Head", "HumanoidRootPart", etc.
-    Smoothness = 0.5, -- 0 to 1 (1 = instant)
+    Smoothness = 0, -- 0 = instant, higher = slower
     TeamCheck = true,
     WallCheck = true,
     ShowFOV = true,
     FOVRadius = 100,
     FOVColor = Color3.fromRGB(255, 255, 255),
+    ActivationMode = "Hold Key", -- "Hold Key" or "Always On"
     AimKey = "MouseButton2" -- Default to right click
 }
 
@@ -109,17 +110,30 @@ function Aimbot:Toggle(state)
                 FOVCircle.Color = Aimbot.Settings.FOVColor
                 FOVCircle.Visible = Aimbot.Settings.ShowFOV
 
-                if aiming then
+                local shouldAim = false
+                if Aimbot.Settings.ActivationMode == "Always On" then
+                    shouldAim = true
+                elseif Aimbot.Settings.ActivationMode == "Hold Key" then
+                    shouldAim = aiming
+                end
+
+                if shouldAim then
                     local target = getClosestTarget()
                     if target then
+                        -- Math: if Smoothness is 0, factor is 1 (instant). If Smoothness is 10, factor is small.
+                        local lerpFactor = 1
+                        if Aimbot.Settings.Smoothness > 0 then
+                            lerpFactor = 1 / (Aimbot.Settings.Smoothness * 2)
+                        end
+
                         if Aimbot.Settings.AimMethod == "Mouse" then
                             local targetPos = Camera:WorldToViewportPoint(target.Position)
-                            local moveX = (targetPos.X - mousePos.X) * Aimbot.Settings.Smoothness
-                            local moveY = (targetPos.Y - mousePos.Y) * Aimbot.Settings.Smoothness
+                            local moveX = (targetPos.X - mousePos.X) * lerpFactor
+                            local moveY = (targetPos.Y - mousePos.Y) * lerpFactor
                             mousemoverel(moveX, moveY)
                         elseif Aimbot.Settings.AimMethod == "Camera" then
                             local lookCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-                            Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, Aimbot.Settings.Smoothness)
+                            Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, lerpFactor)
                         end
                     end
                 end

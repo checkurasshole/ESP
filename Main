@@ -158,12 +158,19 @@ AimSettingsBox:AddDropdown("AimbotTargetPart", {
     Callback = function(Value) updateAimbotSetting("TargetPart", Value) end
 })
 
+AimSettingsBox:AddDropdown("AimbotActivationMode", {
+    Values = { "Hold Key", "Always On" },
+    Default = "Hold Key",
+    Text = "Activation Mode",
+    Callback = function(Value) updateAimbotSetting("ActivationMode", Value) end
+})
+
 AimSettingsBox:AddSlider("AimbotSmoothness", {
-    Text = "Smoothness",
-    Default = 0.5,
-    Min = 0.01,
-    Max = 1,
-    Rounding = 2,
+    Text = "Smoothing (0 = Instant)",
+    Default = 0,
+    Min = 0,
+    Max = 10,
+    Rounding = 1,
     Callback = function(Value) updateAimbotSetting("Smoothness", Value) end
 })
 
