@@ -7,8 +7,9 @@ local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
-local LerpColorModule = loadstring(game:HttpGet("https://pastebin.com/raw/wRnsJeid"))()
-local HealthBarLerp = LerpColorModule:Lerp(Color3.fromRGB(255, 0, 0), Color3.fromRGB(0, 255, 0))
+local function HealthBarLerp(t)
+    return Color3.fromRGB(math.floor(255 * (1 - t)), math.floor(255 * t), 0)
+end
 
 local function NewCircle(Transparency, Color, Radius, Filled, Thickness)
     local c = Drawing.new("Circle")
