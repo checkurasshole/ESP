@@ -7,7 +7,9 @@ function ESP_Module:Toggle(state)
     self.Enabled = state
     if state then
         for _, Player in next, game.Players:GetChildren() do
-            table.insert(Skeletons, Library:NewSkeleton(Player, true))
+            if Player ~= game.Players.LocalPlayer then
+                table.insert(Skeletons, Library:NewSkeleton(Player, true))
+            end
         end
     else
         for _, skeleton in ipairs(Skeletons) do
@@ -23,7 +25,7 @@ function ESP_Module:Toggle(state)
 end
 
 game.Players.PlayerAdded:Connect(function(Player)
-    if ESP_Module.Enabled then
+    if ESP_Module.Enabled and Player ~= game.Players.LocalPlayer then
         table.insert(Skeletons, Library:NewSkeleton(Player, true))
     end
 end)

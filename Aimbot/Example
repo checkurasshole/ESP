@@ -1,6 +1,7 @@
 local Aimbot = {Enabled = false}
 
 Aimbot.Settings = {
+    AimMethod = "Mouse", -- "Mouse" or "Camera"
     TargetPart = "Head",
     Smoothness = 0.5, -- 0.01 to 1 (1 is instant)
     TeamCheck = true,
@@ -143,9 +144,21 @@ function Aimbot:Toggle(state)
                         -- Calculate the CFrame to look at the target
                         local lookCFrame = CFrame.new(cameraPos, targetPos)
                         
-                        -- Use Lerp for smoothness. If Smoothness is 1, it instantly snaps.
                         local smoothFactor = math.clamp(Aimbot.Settings.Smoothness, 0.01, 1)
-                        Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, smoothFactor)
+                        
+                        if Aimbot.Settings.AimMethod == "Mouse" then
+                            local tPos = Camera:WorldToViewportPoint(targetPos)
+                            local moveX = (tPos.X - mousePos.X) * smoothFactor
+                            local moveY = (tPos.Y - mousePos.Y) * smoothFactor
+                            if mousemoverel then
+                                mousemoverel(moveX, moveY)
+                            else
+                                Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, smoothFactor)
+                            end
+                        else
+                            -- Camera method
+                            Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, smoothFactor)
+                        end
                     end
                 else
                     currentTarget = nil
