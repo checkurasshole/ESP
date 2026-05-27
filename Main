@@ -19,10 +19,14 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
+	Aimbot = Window:AddTab("Aimbot", "crosshair"),
 	ESP = Window:AddTab("ESP Options", "eye"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
+--------------------------------------------------------------------------------
+-- ESP TAB
+--------------------------------------------------------------------------------
 local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
 local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 
@@ -45,9 +49,6 @@ local function applySettings(name)
 	if teamSupport[name] and Toggles[name .. "TeamCheck"] then
 		if mod.Settings then
 			mod.Settings.TeamCheck = Toggles[name .. "TeamCheck"].Value
-		end
-		if name == "Radar" and mod.Settings == nil then
-			-- Radar uses RadarInfo internally, its TeamCheck is set via its own table
 		end
 	end
 end
@@ -106,7 +107,112 @@ for _, name in ipairs(espScripts) do
 	end
 end
 
--- UI Settings tab
+--------------------------------------------------------------------------------
+-- AIMBOT TAB
+--------------------------------------------------------------------------------
+local AimSettingsBox = Tabs.Aimbot:AddLeftGroupbox("Settings", "settings")
+local AimFOVBox = Tabs.Aimbot:AddRightGroupbox("FOV & Checks", "scan")
+
+local function getAimbotMod()
+    if not loadedModules["Aimbot"] then
+        local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/Aimbot/Example"
+        local success, module = pcall(function()
+            return loadstring(game:HttpGet(url))()
+        end)
+        if success and type(module) == "table" then
+            loadedModules["Aimbot"] = module
+        else
+            Library:Notify({Title = "Error", Description = "Failed to load Aimbot", Time = 5})
+        end
+    end
+    return loadedModules["Aimbot"]
+end
+
+local function updateAimbotSetting(key, value)
+    local mod = getAimbotMod()
+    if mod and mod.Settings then
+        mod.Settings[key] = value
+    end
+end
+
+AimSettingsBox:AddToggle("AimbotToggle", {
+    Text = "Enable Aimbot",
+    Default = false,
+    Callback = function(Value)
+        local mod = getAimbotMod()
+        if mod then mod:Toggle(Value) end
+    end
+})
+
+AimSettingsBox:AddDropdown("AimbotMethod", {
+    Values = { "Mouse", "Camera" },
+    Default = "Mouse",
+    Text = "Aim Method",
+    Callback = function(Value) updateAimbotSetting("AimMethod", Value) end
+})
+
+AimSettingsBox:AddDropdown("AimbotTargetPart", {
+    Values = { "Head", "HumanoidRootPart", "UpperTorso" },
+    Default = "Head",
+    Text = "Target Part",
+    Callback = function(Value) updateAimbotSetting("TargetPart", Value) end
+})
+
+AimSettingsBox:AddSlider("AimbotSmoothness", {
+    Text = "Smoothness",
+    Default = 0.5,
+    Min = 0.01,
+    Max = 1,
+    Rounding = 2,
+    Callback = function(Value) updateAimbotSetting("Smoothness", Value) end
+})
+
+-- Need to map readable key names to Enum names or generic strings
+AimSettingsBox:AddLabel("Aim Key"):AddKeyPicker("AimbotKey", {
+    Default = "MouseButton2",
+    NoUI = true,
+    Text = "Aim Key",
+    Callback = function() end, -- We don't use this callback, the module listens to UIS directly
+    ChangedCallback = function(New) 
+        -- KeyPicker returns the Name of the key, e.g. "MouseButton2", "E", "LeftShift"
+        updateAimbotSetting("AimKey", New.Name)
+    end
+})
+
+AimFOVBox:AddToggle("AimbotShowFOV", {
+    Text = "Show FOV Circle",
+    Default = true,
+    Callback = function(Value) updateAimbotSetting("ShowFOV", Value) end
+}):AddColorPicker("AimbotFOVColor", {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "FOV Color",
+    Callback = function(Value) updateAimbotSetting("FOVColor", Value) end
+})
+
+AimFOVBox:AddSlider("AimbotFOVRadius", {
+    Text = "FOV Radius",
+    Default = 100,
+    Min = 10,
+    Max = 800,
+    Rounding = 0,
+    Callback = function(Value) updateAimbotSetting("FOVRadius", Value) end
+})
+
+AimFOVBox:AddToggle("AimbotTeamCheck", {
+    Text = "Team Check",
+    Default = true,
+    Callback = function(Value) updateAimbotSetting("TeamCheck", Value) end
+})
+
+AimFOVBox:AddToggle("AimbotWallCheck", {
+    Text = "Wall Check",
+    Default = true,
+    Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
+})
+
+--------------------------------------------------------------------------------
+-- UI SETTINGS TAB
+--------------------------------------------------------------------------------
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -148,7 +254,7 @@ Library.ToggleKeybind = Options.MenuKeybind
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+SaveManager:SetIgnoreIndexes({ "MenuKeybind", "AimbotKey" })
 ThemeManager:SetFolder("combowick")
 SaveManager:SetFolder("combowick/settings")
 

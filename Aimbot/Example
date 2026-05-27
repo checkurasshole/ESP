@@ -1,0 +1,138 @@
+local Aimbot = {Enabled = false}
+
+Aimbot.Settings = {
+    AimMethod = "Mouse", -- "Mouse" or "Camera"
+    TargetPart = "Head", -- "Head", "HumanoidRootPart", etc.
+    Smoothness = 0.5, -- 0 to 1 (1 = instant)
+    TeamCheck = true,
+    WallCheck = true,
+    ShowFOV = true,
+    FOVRadius = 100,
+    FOVColor = Color3.fromRGB(255, 255, 255),
+    AimKey = "MouseButton2" -- Default to right click
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RS = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Thickness = 1
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+
+local connection
+local aiming = false
+
+-- Update aiming state based on key press
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
+        aiming = true
+    end
+end)
+
+UIS.InputEnded:Connect(function(input, gameProcessed)
+    if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
+        aiming = false
+    end
+end)
+
+local function isVisible(targetPart)
+    if not Aimbot.Settings.WallCheck then return true end
+    local origin = Camera.CFrame.Position
+    local direction = (targetPart.Position - origin)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {Player.Character, Camera}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.IgnoreWater = true
+
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    if result then
+        if result.Instance:IsDescendantOf(targetPart.Parent) then
+            return true
+        end
+        return false
+    end
+    return true
+end
+
+local function getClosestTarget()
+    local closestDistance = math.huge
+    local closestTarget = nil
+    
+    local mousePos = UIS:GetMouseLocation()
+
+    for _, v in ipairs(Players:GetPlayers()) do
+        if v ~= Player then
+            local char = v.Character
+            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char:FindFirstChild(Aimbot.Settings.TargetPart) then
+                
+                -- Team Check
+                if Aimbot.Settings.TeamCheck then
+                    local sameTeam = v.Team ~= nil and Player.Team ~= nil and v.Team == Player.Team
+                    if sameTeam then continue end
+                end
+
+                local targetPart = char[Aimbot.Settings.TargetPart]
+                local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                
+                if onScreen then
+                    -- Wall Check
+                    if isVisible(targetPart) then
+                        local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                        if dist < Aimbot.Settings.FOVRadius and dist < closestDistance then
+                            closestDistance = dist
+                            closestTarget = targetPart
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+function Aimbot:Toggle(state)
+    self.Enabled = state
+    if state then
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                -- Update FOV Circle
+                local mousePos = UIS:GetMouseLocation()
+                FOVCircle.Position = mousePos
+                FOVCircle.Radius = Aimbot.Settings.FOVRadius
+                FOVCircle.Color = Aimbot.Settings.FOVColor
+                FOVCircle.Visible = Aimbot.Settings.ShowFOV
+
+                if aiming then
+                    local target = getClosestTarget()
+                    if target then
+                        if Aimbot.Settings.AimMethod == "Mouse" then
+                            local targetPos = Camera:WorldToViewportPoint(target.Position)
+                            local moveX = (targetPos.X - mousePos.X) * Aimbot.Settings.Smoothness
+                            local moveY = (targetPos.Y - mousePos.Y) * Aimbot.Settings.Smoothness
+                            mousemoverel(moveX, moveY)
+                        elseif Aimbot.Settings.AimMethod == "Camera" then
+                            local lookCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+                            Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, Aimbot.Settings.Smoothness)
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        FOVCircle.Visible = false
+        aiming = false
+    end
+end
+
+return Aimbot
