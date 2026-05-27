@@ -24,7 +24,7 @@ local function NewCircle(Transparency, Color, Radius, Filled, Thickness)
 end
 
 local RadarInfo = {
-    Position = Vector2.new(200, 200),
+    Position = Vector2.new(150, Camera.ViewportSize.Y / 2),
     Radius = 100,
     Scale = 1,
     RadarBack = Color3.fromRGB(10, 10, 10),

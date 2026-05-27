@@ -1,0 +1,91 @@
+local ESP_Module = {Enabled = false}
+
+local Settings = {
+    FillColor = Color3.fromRGB(255, 0, 0),
+    FillTransparency = 0.5,
+    OutlineColor = Color3.fromRGB(255, 255, 255),
+    OutlineTransparency = 0,
+    TeamCheck = true,
+    TeamColor = false,
+    Green = Color3.fromRGB(0, 255, 0),
+    Red = Color3.fromRGB(255, 0, 0)
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local RS = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local cache = {}
+local connection
+
+local holder = Instance.new("Folder")
+holder.Name = "ESP_Highlights"
+if pcall(function() holder.Parent = CoreGui end) then
+else
+    holder.Parent = game:GetService("Workspace")
+end
+
+local function CreateHighlight()
+    local h = Instance.new("Highlight")
+    h.FillColor = Settings.FillColor
+    h.FillTransparency = Settings.FillTransparency
+    h.OutlineColor = Settings.OutlineColor
+    h.OutlineTransparency = Settings.OutlineTransparency
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    return h
+end
+
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+    if state then
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= Player then
+                        local char = plr.Character
+                        if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                            if not cache[plr] then
+                                local h = CreateHighlight()
+                                h.Parent = holder
+                                cache[plr] = h
+                            end
+                            local h = cache[plr]
+                            h.Adornee = char
+                            
+                            local clr = Settings.FillColor
+                            if Settings.TeamCheck then
+                                clr = (plr.TeamColor == Player.TeamColor) and Settings.Green or Settings.Red
+                            end
+                            if Settings.TeamColor and plr.TeamColor then
+                                clr = plr.TeamColor.Color
+                            end
+                            h.FillColor = clr
+                            h.Enabled = true
+                        else
+                            if cache[plr] then cache[plr].Enabled = false end
+                        end
+                    end
+                end
+                
+                for p, h in pairs(cache) do
+                    if not p or not p.Parent then
+                        h:Destroy()
+                        cache[p] = nil
+                    end
+                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        for p, h in pairs(cache) do
+            if h then h:Destroy() end
+        end
+        table.clear(cache)
+    end
+end
+
+return ESP_Module
