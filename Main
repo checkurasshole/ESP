@@ -256,6 +256,39 @@ MenuGroup:AddButton("Unload", function()
 	Library:Unload()
 end)
 
+--------------------------------------------------------------------------------
+-- FLOATING TOGGLE BUTTON (MOBILE/PC)
+--------------------------------------------------------------------------------
+local CoreGui = game:GetService("CoreGui")
+local ToggleGui = Instance.new("ScreenGui")
+ToggleGui.Name = "CombowickToggleUI"
+-- Use a protected parent if possible to avoid detection, otherwise CoreGui
+local gethui = gethui or function() return CoreGui end
+ToggleGui.Parent = gethui()
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = ToggleGui
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 10)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleBtn.BorderColor3 = Color3.fromRGB(60, 60, 60)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.Code
+ToggleBtn.TextSize = 14
+ToggleBtn.Text = "Menu"
+ToggleBtn.AutoButtonColor = true
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true -- Allows mobile players to drag it around the screen
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    Library:Toggle()
+end)
+
+Library:OnUnload(function()
+    if ToggleGui then ToggleGui:Destroy() end
+    print("Unloaded Combowick")
+end)
+
 Library.ToggleKeybind = Options.MenuKeybind
 
 ThemeManager:SetLibrary(Library)

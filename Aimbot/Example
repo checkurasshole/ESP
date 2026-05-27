@@ -130,7 +130,13 @@ function Aimbot:Toggle(state)
                             local targetPos = Camera:WorldToViewportPoint(target.Position)
                             local moveX = (targetPos.X - mousePos.X) * lerpFactor
                             local moveY = (targetPos.Y - mousePos.Y) * lerpFactor
-                            mousemoverel(moveX, moveY)
+                            if mousemoverel then
+                                mousemoverel(moveX, moveY)
+                            else
+                                -- Fallback if executor doesn't support mousemoverel
+                                local lookCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+                                Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, lerpFactor)
+                            end
                         elseif Aimbot.Settings.AimMethod == "Camera" then
                             local lookCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
                             Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, lerpFactor)
