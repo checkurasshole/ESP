@@ -24,7 +24,7 @@ local function NewCircle(Transparency, Color, Radius, Filled, Thickness)
     return c
 end
 
-local RadarInfo = {
+ESP_Module.Settings = {
     Position = Vector2.new(150, Camera.ViewportSize.Y / 2),
     Radius = 100,
     Scale = 1,
@@ -35,8 +35,9 @@ local RadarInfo = {
     Team = Color3.fromRGB(0, 255, 0),
     Enemy = Color3.fromRGB(255, 0, 0),
     Health_Color = false,
-    Team_Check = true
+    TeamCheck = true -- Changed from Team_Check to TeamCheck to match Main script
 }
+local RadarInfo = ESP_Module.Settings
 
 local function GetRelative(pos)
     local char = Player.Character
@@ -136,7 +137,7 @@ function ESP_Module:Toggle(state)
 
                             -- Default: enemy red
                             dot.Color = RadarInfo.Enemy
-                            if RadarInfo.Team_Check then
+                            if RadarInfo.TeamCheck then
                                 -- Use .Team (actual team object) not .TeamColor to avoid false matches in teamless games
                                 local sameTeam = plr.Team ~= nil and Player.Team ~= nil and plr.Team == Player.Team
                                 dot.Color = sameTeam and RadarInfo.Team or RadarInfo.Enemy
