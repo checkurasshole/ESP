@@ -1,15 +1,14 @@
 local Aimbot = {Enabled = false}
 
 Aimbot.Settings = {
-    AimMethod = "Mouse", -- "Mouse" or "Camera"
-    TargetPart = "Head", -- "Head", "HumanoidRootPart", etc.
-    Smoothness = 0.5, -- 0 to 1 (1 = instant)
+    TargetPart = "Head",
+    Smoothness = 0.5, -- 0.01 to 1 (1 is instant)
     TeamCheck = true,
     WallCheck = true,
     ShowFOV = true,
     FOVRadius = 100,
     FOVColor = Color3.fromRGB(255, 255, 255),
-    AimKey = "MouseButton2" -- Default to right click
+    AimKey = "MouseButton2" -- "Right Click"
 }
 
 local Players = game:GetService("Players")
@@ -26,10 +25,11 @@ FOVCircle.Transparency = 1
 
 local connection
 local aiming = false
+local currentTarget = nil
 
--- Update aiming state based on key press
+-- IMPORTANT: Do not use gameProcessed here. If we do, right-clicking in Roblox (which spins the camera) 
+-- will be flagged as "processed" and the aimbot will NEVER activate!
 UIS.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
     if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
         aiming = true
     end
@@ -38,6 +38,7 @@ end)
 UIS.InputEnded:Connect(function(input, gameProcessed)
     if input.UserInputType.Name == Aimbot.Settings.AimKey or input.KeyCode.Name == Aimbot.Settings.AimKey then
         aiming = false
+        currentTarget = nil
     end
 end)
 
@@ -62,8 +63,8 @@ local function isVisible(targetPart)
 end
 
 local function getClosestTarget()
-    local closestDistance = math.huge
-    local closestTarget = nil
+    local closestDistance = Aimbot.Settings.FOVRadius
+    local target = nil
     
     local mousePos = UIS:GetMouseLocation()
 
@@ -74,7 +75,10 @@ local function getClosestTarget()
                 
                 -- Team Check
                 if Aimbot.Settings.TeamCheck then
-                    local sameTeam = v.Team ~= nil and Player.Team ~= nil and v.Team == Player.Team
+                    local sameTeam = false
+                    if v.Team and Player.Team and v.Team == Player.Team then
+                        sameTeam = true
+                    end
                     if sameTeam then continue end
                 end
 
@@ -82,26 +86,43 @@ local function getClosestTarget()
                 local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 
                 if onScreen then
-                    -- Wall Check
-                    if isVisible(targetPart) then
-                        local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                        if dist < Aimbot.Settings.FOVRadius and dist < closestDistance then
+                    local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                    if dist < closestDistance then
+                        if isVisible(targetPart) then
                             closestDistance = dist
-                            closestTarget = targetPart
+                            target = targetPart
                         end
                     end
                 end
             end
         end
     end
-    return closestTarget
+    return target
+end
+
+local function isValidTarget(targetPart)
+    if not targetPart or not targetPart.Parent then return false end
+    local hum = targetPart.Parent:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    
+    -- Check if still on screen and in FOV
+    local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+    if not onScreen then return false end
+    
+    local mousePos = UIS:GetMouseLocation()
+    local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+    if dist > Aimbot.Settings.FOVRadius then return false end
+    
+    if not isVisible(targetPart) then return false end
+    
+    return true
 end
 
 function Aimbot:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
-            connection = RS.RenderStepped:Connect(function()
+            connection = RS.RenderStepped:Connect(function(deltaTime)
                 -- Update FOV Circle
                 local mousePos = UIS:GetMouseLocation()
                 FOVCircle.Position = mousePos
@@ -110,18 +131,24 @@ function Aimbot:Toggle(state)
                 FOVCircle.Visible = Aimbot.Settings.ShowFOV
 
                 if aiming then
-                    local target = getClosestTarget()
-                    if target then
-                        if Aimbot.Settings.AimMethod == "Mouse" then
-                            local targetPos = Camera:WorldToViewportPoint(target.Position)
-                            local moveX = (targetPos.X - mousePos.X) * Aimbot.Settings.Smoothness
-                            local moveY = (targetPos.Y - mousePos.Y) * Aimbot.Settings.Smoothness
-                            mousemoverel(moveX, moveY)
-                        elseif Aimbot.Settings.AimMethod == "Camera" then
-                            local lookCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-                            Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, Aimbot.Settings.Smoothness)
-                        end
+                    -- Sticky Aim: If we don't have a target, or the current target is no longer valid, find a new one
+                    if not currentTarget or not isValidTarget(currentTarget) then
+                        currentTarget = getClosestTarget()
                     end
+
+                    if currentTarget then
+                        local targetPos = currentTarget.Position
+                        local cameraPos = Camera.CFrame.Position
+                        
+                        -- Calculate the CFrame to look at the target
+                        local lookCFrame = CFrame.new(cameraPos, targetPos)
+                        
+                        -- Use Lerp for smoothness. If Smoothness is 1, it instantly snaps.
+                        local smoothFactor = math.clamp(Aimbot.Settings.Smoothness, 0.01, 1)
+                        Camera.CFrame = Camera.CFrame:Lerp(lookCFrame, smoothFactor)
+                    end
+                else
+                    currentTarget = nil
                 end
             end)
         end
@@ -132,6 +159,7 @@ function Aimbot:Toggle(state)
         end
         FOVCircle.Visible = false
         aiming = false
+        currentTarget = nil
     end
 end
 
