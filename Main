@@ -6,8 +6,8 @@ local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 local Options = Library.Options
 local Toggles = Library.Toggles
 
-Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
-Library.ShowToggleFrameInKeybinds = true 
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
 
 local Window = Library:CreateWindow({
 	Title = "combowick",
@@ -23,63 +23,93 @@ local Tabs = {
 }
 
 local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
+local RightGroupBox = Tabs.ESP:AddRightGroupbox("Settings", "sliders-horizontal")
 
 local loadedModules = {}
+
+-- Scripts that support a color picker
+local colorSupport = { Arrows = true, Chams = true, Name = true, Tracers = true, ViewTracer = true }
+-- Scripts that support team check
+local teamSupport = { Arrows = true, Chams = true, Name = true, Tracers = true, ViewTracer = true, Radar = true }
+
 local espScripts = {
-    "Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
+	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
 }
 
-for _, name in ipairs(espScripts) do
-    LeftGroupBox:AddToggle(name .. "Toggle", {
-        Text = name .. " ESP",
-        Default = false,
-        Tooltip = "Toggle " .. name .. " ESP",
-        Callback = function(Value)
-            if not loadedModules[name] then
-                local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/" .. name .. "/Example"
-                local success, module = pcall(function()
-                    return loadstring(game:HttpGet(url))()
-                end)
-                if success and type(module) == "table" then
-                    loadedModules[name] = module
-                else
-                    Library:Notify({
-                        Title = "Error",
-                        Description = "Failed to load " .. name .. " ESP",
-                        Time = 5
-                    })
-                    return
-                end
-            end
-            
-            if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
-                loadedModules[name]:Toggle(Value)
-            end
-        end,
-    })
+local function loadESP(name)
+	if not loadedModules[name] then
+		local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/" .. name .. "/Example"
+		local success, module = pcall(function()
+			return loadstring(game:HttpGet(url))()
+		end)
+		if success and type(module) == "table" then
+			loadedModules[name] = module
+		else
+			Library:Notify({
+				Title = "Error",
+				Description = "Failed to load " .. name .. " ESP",
+				Time = 5,
+			})
+			return false
+		end
+	end
+	return true
 end
 
-local RightGroupBox = Tabs.ESP:AddRightGroupbox("Colors & Settings", "palette")
-
 for _, name in ipairs(espScripts) do
-    if name == "Arrows" or name == "Chams" or name == "Name" or name == "Tracers" or name == "ViewTracer" then
-        RightGroupBox:AddColorPicker(name .. "Color", {
-            Default = Color3.fromRGB(255, 0, 0),
-            Title = name .. " Color",
-            Transparency = nil,
-            Callback = function(Value)
-                if loadedModules[name] and loadedModules[name].Settings then
-                    loadedModules[name].Settings.Color = Value
-                    if loadedModules[name].Settings.FillColor then
-                        loadedModules[name].Settings.FillColor = Value
-                    end
-                end
-            end
-        })
-    end
+	local toggle = LeftGroupBox:AddToggle(name .. "Toggle", {
+		Text = name .. " ESP",
+		Default = false,
+		Tooltip = "Toggle " .. name .. " ESP",
+		Callback = function(Value)
+			if not loadESP(name) then
+				-- revert the toggle if load failed
+				Toggles[name .. "Toggle"]:SetValue(false)
+				return
+			end
+			if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
+				loadedModules[name]:Toggle(Value)
+			end
+		end,
+	})
+
+	-- Chain color picker directly onto the toggle (correct Obsidian API)
+	if colorSupport[name] then
+		toggle:AddColorPicker(name .. "Color", {
+			Default = Color3.fromRGB(255, 0, 0),
+			Title = name .. " Color",
+			Callback = function(Value)
+				if loadedModules[name] and loadedModules[name].Settings then
+					loadedModules[name].Settings.Color = Value
+					-- Chams uses FillColor instead
+					if loadedModules[name].Settings.FillColor ~= nil then
+						loadedModules[name].Settings.FillColor = Value
+					end
+				end
+			end,
+		})
+	end
 end
 
--- UI Settings
+-- Team Check toggles in the right group, one per supported ESP
+RightGroupBox:AddLabel("Team Check")
+
+for _, name in ipairs(espScripts) do
+	if teamSupport[name] then
+		RightGroupBox:AddToggle(name .. "TeamCheck", {
+			Text = name,
+			Default = true,
+			Tooltip = "Enable team check for " .. name .. " ESP",
+			Callback = function(Value)
+				if loadedModules[name] and loadedModules[name].Settings then
+					loadedModules[name].Settings.TeamCheck = Value
+				end
+			end,
+		})
+	end
+end
+
+-- UI Settings tab
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -99,9 +129,7 @@ MenuGroup:AddToggle("ShowCustomCursor", {
 MenuGroup:AddDropdown("NotificationSide", {
 	Values = { "Left", "Right" },
 	Default = "Right",
-
 	Text = "Notification Side",
-
 	Callback = function(Value)
 		Library:SetNotifySide(Value)
 	end,
@@ -109,13 +137,10 @@ MenuGroup:AddDropdown("NotificationSide", {
 MenuGroup:AddDropdown("DPIDropdown", {
 	Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
 	Default = "100%",
-
 	Text = "DPI Scale",
-
 	Callback = function(Value)
 		Value = Value:gsub("%%", "")
 		local DPI = tonumber(Value)
-
 		Library:SetDPIScale(DPI)
 	end,
 })
@@ -128,7 +153,7 @@ MenuGroup:AddSlider("UICornerSlider", {
 	Rounding = 0,
 	Callback = function(value)
 		Window:SetCornerRadius(value)
-	end
+	end,
 })
 
 MenuGroup:AddDivider()
