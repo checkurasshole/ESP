@@ -14,7 +14,8 @@ local Window = Library:CreateWindow({
 	Footer = "version: 1.0",
 	Icon = 95816097006870,
 	NotifySide = "Right",
-	ShowCustomCursor = true,
+	ShowCustomCursor = false,
+	Size = UDim2.new(0, 360, 0, 480),
 })
 
 local Tabs = {
@@ -31,11 +32,25 @@ local espScripts = {
 	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
 }
 
--- ESPs that support team check toggling
+-- ESPs that support team check
 local teamSupport = {
 	Arrows = true, Chams = true, Name = true,
 	Tracers = true, ViewTracer = true, Radar = true,
 }
+
+local function applySettings(name)
+	local mod = loadedModules[name]
+	if not mod then return end
+	-- Apply current team check toggle state to freshly loaded module
+	if teamSupport[name] and Toggles[name .. "TeamCheck"] then
+		if mod.Settings then
+			mod.Settings.TeamCheck = Toggles[name .. "TeamCheck"].Value
+		end
+		if name == "Radar" and mod.Settings == nil then
+			-- Radar uses RadarInfo internally, its TeamCheck is set via its own table
+		end
+	end
+end
 
 local function loadESP(name)
 	if not loadedModules[name] then
@@ -45,6 +60,7 @@ local function loadESP(name)
 		end)
 		if success and type(module) == "table" then
 			loadedModules[name] = module
+			applySettings(name)
 		else
 			Library:Notify({
 				Title = "Error",
@@ -74,7 +90,7 @@ for _, name in ipairs(espScripts) do
 	})
 end
 
--- Team check toggles (right side)
+-- Team check toggles (right side) - default ON
 for _, name in ipairs(espScripts) do
 	if teamSupport[name] then
 		RightGroupBox:AddToggle(name .. "TeamCheck", {
@@ -100,13 +116,6 @@ MenuGroup:AddToggle("KeybindMenuOpen", {
 		Library.KeybindFrame.Visible = value
 	end,
 })
-MenuGroup:AddToggle("ShowCustomCursor", {
-	Text = "Custom Cursor",
-	Default = true,
-	Callback = function(Value)
-		Library.ShowCustomCursor = Value
-	end,
-})
 MenuGroup:AddDropdown("NotificationSide", {
 	Values = { "Left", "Right" },
 	Default = "Right",
@@ -123,17 +132,6 @@ MenuGroup:AddDropdown("DPIDropdown", {
 		Value = Value:gsub("%%", "")
 		local DPI = tonumber(Value)
 		Library:SetDPIScale(DPI)
-	end,
-})
-
-MenuGroup:AddSlider("UICornerSlider", {
-	Text = "Corner Radius",
-	Default = Library.CornerRadius,
-	Min = 0,
-	Max = 20,
-	Rounding = 0,
-	Callback = function(value)
-		Window:SetCornerRadius(value)
 	end,
 })
 

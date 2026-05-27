@@ -3,7 +3,7 @@
 local ESP_Module = {Enabled = false}
 
 ESP_Module.Settings = {
-    TeamCheck = false,
+    TeamCheck = true,
 }
 
 local DistFromCenter = 80

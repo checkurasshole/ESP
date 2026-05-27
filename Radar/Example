@@ -34,7 +34,7 @@ local RadarInfo = {
     PlayerDot = Color3.fromRGB(60, 170, 255),
     Team = Color3.fromRGB(0, 255, 0),
     Enemy = Color3.fromRGB(255, 0, 0),
-    Health_Color = true,
+    Health_Color = false,
     Team_Check = true
 }
 
@@ -134,11 +134,13 @@ function ESP_Module:Toggle(state)
                                 dot.Position = Vector2.new(newpos.X + calc.X, newpos.Y + calc.Y)
                             end
 
-                            dot.Color = RadarInfo.PlayerDot
+                            -- Default: enemy red
+                            dot.Color = RadarInfo.Enemy
                             if RadarInfo.Team_Check then
-                                dot.Color = (plr.TeamColor == Player.TeamColor) and RadarInfo.Team or RadarInfo.Enemy
+                                -- Use .Team (actual team object) not .TeamColor to avoid false matches in teamless games
+                                local sameTeam = plr.Team ~= nil and Player.Team ~= nil and plr.Team == Player.Team
+                                dot.Color = sameTeam and RadarInfo.Team or RadarInfo.Enemy
                             end
-
                             if RadarInfo.Health_Color then
                                 dot.Color = HealthBarLerp(hum.Health / hum.MaxHealth)
                             end
