@@ -1,9 +1,4 @@
 local ESP = {Enabled = false}
-function ESP:Toggle(state)
-    self.Enabled = state
-end
-
--- Made by Blissful#4992
 
 local DistFromCenter = 80
 local TriangleHeight = 16
@@ -14,12 +9,10 @@ local TriangleThickness = 1
 local TriangleColor = Color3.fromRGB(255, 255, 255)
 local AntiAliasing = false
 
-----------------------------------------------------------------
-
-local Players = game:service("Players")
+local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local RS = game:service("RunService")
+local RS = game:GetService("RunService")
 
 local V3 = Vector3.new
 local V2 = Vector2.new
@@ -28,16 +21,13 @@ local COS = math.cos
 local SIN = math.sin
 local RAD = math.rad
 local DRAWING = Drawing.new
-local CWRAP = coroutine.wrap
 local ROUND = math.round
 
 local function GetRelative(pos, char)
-    if not char then return V2(0,0) end
-
+    if not char or not char.PrimaryPart then return V2(0,0) end
     local rootP = char.PrimaryPart.Position
     local camP = Camera.CFrame.Position
     local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
-
     return V2(relative.X, relative.Z)
 end
 
@@ -49,7 +39,6 @@ local function RotateVect(v, a)
     a = RAD(a)
     local x = v.x * COS(a) - v.y * SIN(a)
     local y = v.x * SIN(a) + v.y * COS(a)
-
     return V2(x, y)
 end
 
@@ -68,61 +57,68 @@ local function AntiA(v)
     return V2(ROUND(v.x), ROUND(v.y))
 end
 
-local function ShowArrow(PLAYER)
-    local Arrow = DrawTriangle(TriangleColor)
+local cache = {}
+local connection
 
-    local function Update()
-        local c ; c = RS.RenderStepped:Connect(function()
-            if PLAYER and PLAYER.Character then
-                local CHAR = PLAYER.Character
-                local HUM = CHAR:FindFirstChildOfClass("Humanoid")
-
-                if HUM and CHAR.PrimaryPart ~= nil and HUM.Health > 0 then
-                    local _,vis = Camera:WorldToViewportPoint(CHAR.PrimaryPart.Position)
-                    if vis == false and ESP.Enabled then
-                        local rel = GetRelative(CHAR.PrimaryPart.Position, Player.Character)
-                        local direction = rel.unit
-
-                        local base  = direction * DistFromCenter
-                        local sideLength = TriangleWidth/2
-                        local baseL = base + RotateVect(direction, 90) * sideLength
-                        local baseR = base + RotateVect(direction, -90) * sideLength
-
-                        local tip = direction * (DistFromCenter + TriangleHeight)
-                        
-                        Arrow.PointA = AntiA(RelativeToCenter(baseL))
-                        Arrow.PointB = AntiA(RelativeToCenter(baseR))
-
-                        Arrow.PointC = AntiA(RelativeToCenter(tip))
-
-                        Arrow.Visible = true
-
-                    else Arrow.Visible = false end
-                else Arrow.Visible = false end
-            else 
-                Arrow.Visible = false
-
-                if not PLAYER or not PLAYER.Parent then
-                    Arrow:Remove()
-                    c:Disconnect()
+function ESP:Toggle(state)
+    self.Enabled = state
+    if state then
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= Player then
+                        local char = p.Character
+                        if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+                            local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
+                            if not vis then
+                                if not cache[p] then cache[p] = DrawTriangle(TriangleColor) end
+                                local arrow = cache[p]
+                                
+                                local rel = GetRelative(char.PrimaryPart.Position, Player.Character)
+                                local direction = rel.unit
+                                if direction.Magnitude > 0 then
+                                    local base  = direction * DistFromCenter
+                                    local sideLength = TriangleWidth/2
+                                    local baseL = base + RotateVect(direction, 90) * sideLength
+                                    local baseR = base + RotateVect(direction, -90) * sideLength
+                                    local tip = direction * (DistFromCenter + TriangleHeight)
+                                    
+                                    arrow.PointA = AntiA(RelativeToCenter(baseL))
+                                    arrow.PointB = AntiA(RelativeToCenter(baseR))
+                                    arrow.PointC = AntiA(RelativeToCenter(tip))
+                                    arrow.Visible = true
+                                else
+                                    arrow.Visible = false
+                                end
+                            else
+                                if cache[p] then cache[p].Visible = false end
+                            end
+                        else
+                            if cache[p] then cache[p].Visible = false end
+                        end
+                    end
                 end
+                
+                for p, arrow in pairs(cache) do
+                    if not p or not p.Parent then
+                        arrow:Remove()
+                        cache[p] = nil
+                    end
+                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        for p, arrow in pairs(cache) do
+            if arrow and type(arrow.Remove) == "function" then
+                arrow:Remove()
             end
-        end)
-    end
-
-    CWRAP(Update)()
-end
-
-for _,v in pairs(Players:GetChildren()) do
-    if v.Name ~= Player.Name then
-        ShowArrow(v)
+        end
+        table.clear(cache)
     end
 end
-
-Players.PlayerAdded:Connect(function(v)
-    if v.Name ~= Player.Name then
-        ShowArrow(v)
-    end
-end)
 
 return ESP

@@ -1,9 +1,5 @@
 local ESP = {Enabled = false}
-function ESP:Toggle(state)
-    self.Enabled = state
-end
 
--- Settings
 local Settings = {
     Box_Color = Color3.fromRGB(255, 0, 0),
     Box_Thickness = 2,
@@ -12,12 +8,12 @@ local Settings = {
     Autothickness = true
 }
 
---Locals
+local Players = game:GetService("Players")
 local Space = game:GetService("Workspace")
-local Player = game:GetService("Players").LocalPlayer
+local Player = Players.LocalPlayer
 local Camera = Space.CurrentCamera
+local RS = game:GetService("RunService")
 
--- Locals
 local function NewLine(color, thickness)
     local line = Drawing.new("Line")
     line.Visible = false
@@ -30,148 +26,135 @@ local function NewLine(color, thickness)
 end
 
 local function Vis(lib, state)
-    for i, v in pairs(lib) do
+    for _, v in pairs(lib) do
         v.Visible = state
     end
 end
 
 local function Colorize(lib, color)
-    for i, v in pairs(lib) do
+    for _, v in pairs(lib) do
         v.Color = color
     end
 end
 
-local Black = Color3.fromRGB(0, 0, 0)
+local cache = {}
+local connection
 
-local function Rainbow(lib, delay)
-    for hue = 0, 1, 1/30 do
-        local color = Color3.fromHSV(hue, 0.6, 1)
-        Colorize(lib, color)
-        wait(delay)
-    end
-    Rainbow(lib)
-end
---Main Draw Function
-local function Main(plr)
-    repeat wait() until plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil
-    local R15
-    if plr.Character.Humanoid.RigType == Enum.HumanoidRigType.R15 then
-        R15 = true
-    else 
-        R15 = false
-    end
-    local Library = {
-        TL1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
-        TL2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+function ESP:Toggle(state)
+    self.Enabled = state
+    if state then
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= Player then
+                        local char = plr.Character
+                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 and char:FindFirstChild("Head") then
+                            local HumPos, vis = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+                            if vis then
+                                if not cache[plr] then
+                                    local lib = {
+                                        TL1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        TL2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        TR1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        TR2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        BL1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        BL2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        BR1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                        BR2 = NewLine(Settings.Box_Color, Settings.Box_Thickness)
+                                    }
+                                    cache[plr] = lib
+                                end
+                                
+                                local lib = cache[plr]
+                                
+                                local cf = CFrame.new(char.HumanoidRootPart.Position, Camera.CFrame.Position)
+                                local SizeX = char.HumanoidRootPart.Size.X
+                                local SizeY = char.HumanoidRootPart.Size.Y * 1.5
+                                
+                                local TL = Camera:WorldToViewportPoint((cf * CFrame.new(SizeX, SizeY, 0)).p)
+                                local TR = Camera:WorldToViewportPoint((cf * CFrame.new(-SizeX, SizeY, 0)).p)
+                                local BL = Camera:WorldToViewportPoint((cf * CFrame.new(SizeX, -SizeY, 0)).p)
+                                local BR = Camera:WorldToViewportPoint((cf * CFrame.new(-SizeX, -SizeY, 0)).p)
+                                
+                                if Settings.Team_Check then
+                                    if plr.TeamColor == Player.TeamColor then
+                                        Colorize(lib, Color3.fromRGB(0, 255, 0))
+                                    else 
+                                        Colorize(lib, Color3.fromRGB(255, 0, 0))
+                                    end
+                                end
 
-        TR1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
-        TR2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                if Settings.Team_Color then
+                                    Colorize(lib, plr.TeamColor.Color)
+                                end
+                                
+                                local ratio = (Camera.CFrame.p - char.HumanoidRootPart.Position).Magnitude
+                                local offset = math.clamp(1/ratio*750, 2, 300)
+                                
+                                lib.TL1.From = Vector2.new(TL.X, TL.Y)
+                                lib.TL1.To = Vector2.new(TL.X + offset, TL.Y)
+                                lib.TL2.From = Vector2.new(TL.X, TL.Y)
+                                lib.TL2.To = Vector2.new(TL.X, TL.Y + offset)
 
-        BL1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
-        BL2 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
+                                lib.TR1.From = Vector2.new(TR.X, TR.Y)
+                                lib.TR1.To = Vector2.new(TR.X - offset, TR.Y)
+                                lib.TR2.From = Vector2.new(TR.X, TR.Y)
+                                lib.TR2.To = Vector2.new(TR.X, TR.Y + offset)
 
-        BR1 = NewLine(Settings.Box_Color, Settings.Box_Thickness),
-        BR2 = NewLine(Settings.Box_Color, Settings.Box_Thickness)
-    }
-    coroutine.wrap(Rainbow)(Library, 0.15)
-    local oripart = Instance.new("Part")
-    oripart.Parent = Space
-    oripart.Transparency = 1
-    oripart.CanCollide = false
-    oripart.Size = Vector3.new(1, 1, 1)
-    oripart.Position = Vector3.new(0, 0, 0)
-    --Updater Loop
-    local function Updater()
-        local c 
-        c = game:GetService("RunService").RenderStepped:Connect(function()
-            if ESP.Enabled and plr.Character ~= nil and plr.Character:FindFirstChild("Humanoid") ~= nil and plr.Character:FindFirstChild("HumanoidRootPart") ~= nil and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("Head") ~= nil then
-                local Hum = plr.Character
-                local HumPos, vis = Camera:WorldToViewportPoint(Hum.HumanoidRootPart.Position)
-                if vis then
-                    oripart.Size = Vector3.new(Hum.HumanoidRootPart.Size.X, Hum.HumanoidRootPart.Size.Y*1.5, Hum.HumanoidRootPart.Size.Z)
-                    oripart.CFrame = CFrame.new(Hum.HumanoidRootPart.CFrame.Position, Camera.CFrame.Position)
-                    local SizeX = oripart.Size.X
-                    local SizeY = oripart.Size.Y
-                    local TL = Camera:WorldToViewportPoint((oripart.CFrame * CFrame.new(SizeX, SizeY, 0)).p)
-                    local TR = Camera:WorldToViewportPoint((oripart.CFrame * CFrame.new(-SizeX, SizeY, 0)).p)
-                    local BL = Camera:WorldToViewportPoint((oripart.CFrame * CFrame.new(SizeX, -SizeY, 0)).p)
-                    local BR = Camera:WorldToViewportPoint((oripart.CFrame * CFrame.new(-SizeX, -SizeY, 0)).p)
+                                lib.BL1.From = Vector2.new(BL.X, BL.Y)
+                                lib.BL1.To = Vector2.new(BL.X + offset, BL.Y)
+                                lib.BL2.From = Vector2.new(BL.X, BL.Y)
+                                lib.BL2.To = Vector2.new(BL.X, BL.Y - offset)
 
-                    if Settings.Team_Check then
-                        if plr.TeamColor == Player.TeamColor then
-                            Colorize(Library, Color3.fromRGB(0, 255, 0))
-                        else 
-                            Colorize(Library, Color3.fromRGB(255, 0, 0))
+                                lib.BR1.From = Vector2.new(BR.X, BR.Y)
+                                lib.BR1.To = Vector2.new(BR.X - offset, BR.Y)
+                                lib.BR2.From = Vector2.new(BR.X, BR.Y)
+                                lib.BR2.To = Vector2.new(BR.X, BR.Y - offset)
+                                
+                                Vis(lib, true)
+
+                                if Settings.Autothickness then
+                                    local distance = (Player.Character and Player.Character.PrimaryPart) and (Player.Character.PrimaryPart.Position - char.HumanoidRootPart.Position).Magnitude or ratio
+                                    local value = math.clamp(1/distance*100, 1, 4)
+                                    for _, x in pairs(lib) do
+                                        x.Thickness = value
+                                    end
+                                else 
+                                    for _, x in pairs(lib) do
+                                        x.Thickness = Settings.Box_Thickness
+                                    end
+                                end
+                            else
+                                if cache[plr] then Vis(cache[plr], false) end
+                            end
+                        else
+                            if cache[plr] then Vis(cache[plr], false) end
                         end
                     end
-
-                    if Settings.Team_Color then
-                        Colorize(Library, plr.TeamColor.Color)
-                    end
-
-                    local ratio = (Camera.CFrame.p - Hum.HumanoidRootPart.Position).magnitude
-                    local offset = math.clamp(1/ratio*750, 2, 300)
-
-                    Library.TL1.From = Vector2.new(TL.X, TL.Y)
-                    Library.TL1.To = Vector2.new(TL.X + offset, TL.Y)
-                    Library.TL2.From = Vector2.new(TL.X, TL.Y)
-                    Library.TL2.To = Vector2.new(TL.X, TL.Y + offset)
-
-                    Library.TR1.From = Vector2.new(TR.X, TR.Y)
-                    Library.TR1.To = Vector2.new(TR.X - offset, TR.Y)
-                    Library.TR2.From = Vector2.new(TR.X, TR.Y)
-                    Library.TR2.To = Vector2.new(TR.X, TR.Y + offset)
-
-                    Library.BL1.From = Vector2.new(BL.X, BL.Y)
-                    Library.BL1.To = Vector2.new(BL.X + offset, BL.Y)
-                    Library.BL2.From = Vector2.new(BL.X, BL.Y)
-                    Library.BL2.To = Vector2.new(BL.X, BL.Y - offset)
-
-                    Library.BR1.From = Vector2.new(BR.X, BR.Y)
-                    Library.BR1.To = Vector2.new(BR.X - offset, BR.Y)
-                    Library.BR2.From = Vector2.new(BR.X, BR.Y)
-                    Library.BR2.To = Vector2.new(BR.X, BR.Y - offset)
-
-                    Vis(Library, true)
-
-                    if Settings.Autothickness then
-                        local distance = (Player.Character.HumanoidRootPart.Position - oripart.Position).magnitude
-                        local value = math.clamp(1/distance*100, 1, 4) --0.1 is min thickness, 6 is max
-                        for u, x in pairs(Library) do
-                            x.Thickness = value
-                        end
-                    else 
-                        for u, x in pairs(Library) do
-                            x.Thickness = Settings.Box_Thickness
-                        end
-                    end
-                else 
-                    Vis(Library, false)
                 end
-            else 
-                Vis(Library, false)
-                if game:GetService("Players"):FindFirstChild(plr.Name) == nil then
-                    for i, v in pairs(Library) do
-                        v:Remove()
-                        oripart:Destroy()
+                
+                for p, lib in pairs(cache) do
+                    if not p or not p.Parent then
+                        for _, v in pairs(lib) do v:Remove() end
+                        cache[p] = nil
                     end
-                    c:Disconnect()
+                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        for p, lib in pairs(cache) do
+            for _, v in pairs(lib) do
+                if v and type(v.Remove) == "function" then
+                    v:Remove()
                 end
             end
-        end)
-    end
-    coroutine.wrap(Updater)()
-end
-
--- Draw Boxes
-for i, v in pairs(game:GetService("Players"):GetPlayers()) do
-    if v.Name ~= Player.Name then
-      coroutine.wrap(Main)(v)
+        end
+        table.clear(cache)
     end
 end
-
-game:GetService("Players").PlayerAdded:Connect(function(newplr)
-    coroutine.wrap(Main)(newplr)
-end)
 
 return ESP

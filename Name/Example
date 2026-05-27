@@ -1,19 +1,17 @@
 local ESP_Module = {Enabled = false}
-function ESP_Module:Toggle(state)
-    self.Enabled = state
-end
 
---//Made by Blissful#4992
 local settings = {
     Color = Color3.fromRGB(255, 0, 0),
     Size = 15,
-    Transparency = 1, -- 1 Visible - 0 Not Visible
+    Transparency = 1,
     AutoScale = true
 }
 
 local space = game:GetService("Workspace")
-local player = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 local camera = space.CurrentCamera
+local RS = game:GetService("RunService")
 
 local function NewText(color, size, transparency)
     local text = Drawing.new("Text")
@@ -27,89 +25,63 @@ local function NewText(color, size, transparency)
     return text
 end
 
-local function Visibility(state, lib)
-    for u, x in pairs(lib) do
-        x.Visible = state
-    end
-end
+local cache = {}
+local connection
 
-local function Size(size, lib)
-    for u, x in pairs(lib) do
-        x.Size = size
-    end
-end
-
-for i, v in pairs(game:GetService("Players"):GetPlayers()) do
-    local library = {
-        name = NewText(settings.Color, settings.Size, settings.Transparency)
-    }
-    local function ESP()
-        local connection
-        connection = game:GetService("RunService").RenderStepped:Connect(function()
-            if ESP_Module.Enabled and v.Character ~= nil and v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("HumanoidRootPart") ~= nil and v.Name ~= player.Name and v.Character.Humanoid.Health > 0 then
-                local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
-                if OnScreen then
-                    library.name.Text = v.Name
-                    library.name.Position = Vector2.new(HumanoidRootPart_Pos.X, HumanoidRootPart_Pos.Y)
-                    --// AutoScale
-                    if settings.AutoScale then
-                        local distance = (Vector3.new(camera.CFrame.X, camera.CFrame.Y, camera.CFrame.Z) - v.Character.HumanoidRootPart.Position).magnitude
-                        local textsize = math.clamp(1/distance*1000, 2, 30) -- 2 is min text size, 30 is max text size, change to your liking
-                        Size(textsize, library)
-                    else 
-                        Size(settings.Size, library)
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+    if state then
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                for _, v in ipairs(Players:GetPlayers()) do
+                    if v ~= player then
+                        local char = v.Character
+                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
+                            local rootPos, onScreen = camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+                            if onScreen then
+                                if not cache[v] then
+                                    cache[v] = NewText(settings.Color, settings.Size, settings.Transparency)
+                                end
+                                local nameTxt = cache[v]
+                                nameTxt.Text = v.Name
+                                nameTxt.Position = Vector2.new(rootPos.X, rootPos.Y)
+                                
+                                if settings.AutoScale then
+                                    local distance = (camera.CFrame.Position - char.HumanoidRootPart.Position).Magnitude
+                                    nameTxt.Size = math.clamp(1/distance*1000, 2, 30)
+                                else 
+                                    nameTxt.Size = settings.Size
+                                end
+                                nameTxt.Visible = true
+                            else 
+                                if cache[v] then cache[v].Visible = false end
+                            end
+                        else 
+                            if cache[v] then cache[v].Visible = false end
+                        end
                     end
-                    --//--
-                    Visibility(true, library)
-                else 
-                    Visibility(false, library)
                 end
-            else 
-                Visibility(false, library)
-                if game.Players:FindFirstChild(v.Name) == nil then
-                    connection:Disconnect()
-                end
-            end
-        end)
-    end
-    coroutine.wrap(ESP)()
-end
-
-game.Players.PlayerAdded:Connect(function(newplr)
-    print(newplr)
-    local library = {
-        name = NewText(settings.Color, settings.Size, settings.Transparency)
-    }
-    local function ESP()
-        local connection
-        connection = game:GetService("RunService").RenderStepped:Connect(function()
-            if ESP_Module.Enabled and newplr.Character ~= nil and newplr.Character:FindFirstChild("Humanoid") ~= nil and newplr.Character:FindFirstChild("HumanoidRootPart") ~= nil and newplr.Name ~= player.Name and newplr.Character.Humanoid.Health > 0 then
-                local HumanoidRootPart_Pos, OnScreen = camera:WorldToViewportPoint(newplr.Character.HumanoidRootPart.Position)
-                if OnScreen then
-                    library.name.Text = newplr.Name
-                    library.name.Position = Vector2.new(HumanoidRootPart_Pos.X, HumanoidRootPart_Pos.Y)
-                    --// AutoScale
-                    if settings.AutoScale then
-                        local distance = (Vector3.new(camera.CFrame.X, camera.CFrame.Y, camera.CFrame.Z) - newplr.Character.HumanoidRootPart.Position).magnitude
-                        local textsize = math.clamp(1/distance*1000, 2, 30) -- 2 is min text size, 20 is max text size, change to your liking
-                        Size(textsize, library)
-                    else 
-                        Size(settings.Size, library)
+                
+                for p, txt in pairs(cache) do
+                    if not p or not p.Parent then
+                        txt:Remove()
+                        cache[p] = nil
                     end
-                    --//--
-                    Visibility(true, library)
-                else 
-                    Visibility(false, library)
                 end
-            else 
-                Visibility(false, library)
-                if game.Players:FindFirstChild(newplr.Name) == nil then
-                    connection:Disconnect()
-                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        for p, txt in pairs(cache) do
+            if txt and type(txt.Remove) == "function" then
+                txt:Remove()
             end
-        end)
+        end
+        table.clear(cache)
     end
-    coroutine.wrap(ESP)()
-end)
+end
 
 return ESP_Module
