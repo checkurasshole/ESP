@@ -1,0 +1,347 @@
+-- mspaint Tactical AIO (PC/Mobile) - RIVALS TEAM-CHECK UPGRADE
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+
+local Window = Library:CreateWindow({
+	Title = "mspaint | Tactical AIO",
+	Footer = "Rivals Team-Check + Sticky Aim",
+	Icon = 95816097006870,
+	NotifySide = "Right",
+	ShowCustomCursor = false, 
+    MobileButtonsSide = "Right"
+})
+
+local Tabs = {
+	Main = Window:AddTab("Combat", "crosshair"),
+    Visuals = Window:AddTab("Visuals", "eye"),
+	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+}
+
+-- [ VARIABLES ] --
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = false
+FOVCircle.Thickness = 1
+FOVCircle.NumSides = 100
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+
+local StickyTarget = nil
+local ESP_Cache = {}
+
+-- [ ADVANCED TEAM DETECTION (RIVALS FIX) ] --
+local function IsTeammate(Player)
+    if not Toggles.TeamCheck.Value then return false end
+    
+    -- 1. Standard Team Property
+    if Player.Team == LocalPlayer.Team and Player.Team ~= nil then
+        return true
+    end
+    
+    -- 2. Rivals Attribute Check
+    if Player:GetAttribute("Team") == LocalPlayer:GetAttribute("Team") and Player:GetAttribute("Team") ~= nil then
+        return true
+    end
+
+    -- 3. Billboard Teammate Indicator Check (The "Picture" Fix)
+    local Char = Player.Character
+    if Char then
+        -- Rivals often uses 'teamatelabel' or 'Marker' in the HumanoidRootPart or Head
+        local HRP = Char:FindFirstChild("HumanoidRootPart")
+        if HRP and (HRP:FindFirstChild("teamatelabel") or HRP:FindFirstChild("TeammateLabel") or HRP:FindFirstChild("Marker")) then
+            return true
+        end
+        
+        local Head = Char:FindFirstChild("Head")
+        if Head and (Head:FindFirstChild("TeammateLabel") or Head:FindFirstChild("FriendMarker")) then
+            return true
+        end
+
+        -- Final Scan: Check for any BillboardGui that indicates a teammate
+        for _, child in pairs(Char:GetDescendants()) do
+            if child:IsA("BillboardGui") and (child.Name:lower():find("team") or child.Name:lower():find("friend")) then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+-- [ TARGETING ] --
+local function GetClosestTarget()
+    local Target, Closest = nil, Options.AimbotFOV.Value
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            -- Use our custom TeamCheck
+            if IsTeammate(p) then continue end
+            
+            local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            if OnScreen then
+                if Toggles.WallCheck.Value then
+                    local Parts = Camera:GetPartsObscuringTarget({p.Character.HumanoidRootPart.Position}, {LocalPlayer.Character, p.Character})
+                    if #Parts > 0 then continue end
+                end
+
+                local Dist = (Vector2.new(Pos.X, Pos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if Dist < Closest then
+                    Closest = Dist
+                    Target = p
+                end
+            end
+        end
+    end
+    return Target
+end
+
+-- [ HITBOX LOOP ] --
+task.spawn(function()
+    while task.wait(0.2) do
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local Root = p.Character.HumanoidRootPart
+                local Hum = p.Character:FindFirstChild("Humanoid")
+                
+                if Toggles.HitboxEnabled.Value and not IsTeammate(p) then
+                    if Hum and not Hum.Sit then
+                        Root.Size = Vector3.new(Options.HitboxSize.Value, Options.HitboxSize.Value, Options.HitboxSize.Value)
+                        Root.Transparency = Options.HitboxTransparency.Value
+                        Root.Color = Options.HitboxColor.Value
+                        Root.Material = Enum.Material.Neon
+                    end
+                else
+                    Root.Size = Vector3.new(2, 2, 1)
+                    Root.Transparency = 1
+                end
+            end
+        end
+    end
+end)
+
+-- [ ESP CLEANUP ] --
+local function RemoveESP(Player)
+    if ESP_Cache[Player] then
+        for _, obj in pairs(ESP_Cache[Player]) do
+            if typeof(obj) == "table" then for _, sub in pairs(obj) do sub:Remove() end
+            elseif typeof(obj) == "Instance" then obj:Destroy()
+            else obj:Remove() end
+        end
+        ESP_Cache[Player] = nil
+    end
+end
+
+-- [ COMBAT UI ] --
+local AimGroup = Tabs.Main:AddLeftGroupbox("Aimbot Settings")
+AimGroup:AddToggle("AimbotEnabled", { Text = "Enabled", Default = false })
+AimGroup:AddToggle("AlwaysOn", { Text = "Always On (Auto-Lock)", Default = false })
+AimGroup:AddDropdown("AimMethod", { Values = {"Camera", "Mouse", "Hybrid"}, Default = 3, Text = "Aim Method" })
+AimGroup:AddToggle("TeamCheck", { Text = "Team Check", Default = true })
+AimGroup:AddToggle("WallCheck", { Text = "Visibility Check", Default = true })
+AimGroup:AddSlider("AimbotFOV", { Text = "FOV Size", Default = 150, Min = 0, Max = 1000 })
+AimGroup:AddSlider("Smoothing", { Text = "Smoothness", Default = 2, Min = 1, Max = 20, Rounding = 1 })
+AimGroup:AddSlider("Prediction", { Text = "Prediction", Default = 0, Min = 0, Max = 5, Rounding = 1 })
+AimGroup:AddDropdown("AimPart", { Values = {"Head", "HumanoidRootPart"}, Default = 1, Text = "Target Part" })
+AimGroup:AddLabel("Aim Keybind"):AddKeyPicker("AimKey", { Default = "MB2", Mode = "Hold", Text = "Aim Lock" })
+
+local KillGroup = Tabs.Main:AddRightGroupbox("KILL V1 (OP)")
+KillGroup:AddToggle("KillV1Enabled", { Text = "Enabled", Default = false })
+KillGroup:AddSlider("KillHeight", { Text = "Height Above Head", Default = 6, Min = 2, Max = 20, Rounding = 1 })
+
+local HitGroup = Tabs.Main:AddRightGroupbox("Hitbox Expander")
+HitGroup:AddToggle("HitboxEnabled", { Text = "Enabled", Default = false })
+HitGroup:AddSlider("HitboxSize", { Text = "Hitbox Size", Default = 2, Min = 2, Max = 20, Rounding = 1 })
+HitGroup:AddSlider("HitboxTransparency", { Text = "Hitbox Transparency", Default = 0.5, Min = 0, Max = 1, Rounding = 1 })
+HitGroup:AddLabel("Hitbox Color"):AddColorPicker("HitboxColor", { Default = Color3.fromRGB(255, 0, 0) })
+
+-- [ VISUALS UI ] --
+local VisGroup = Tabs.Visuals:AddLeftGroupbox("Visuals")
+VisGroup:AddToggle("VisBox", { Text = "Corner Brackets", Default = false })
+VisGroup:AddToggle("VisSkeleton", { Text = "Skeleton ESP", Default = false })
+VisGroup:AddToggle("VisHealth", { Text = "Dynamic Health Bar", Default = false })
+VisGroup:AddToggle("VisName", { Text = "Tactical Info Tags", Default = false })
+VisGroup:AddToggle("VisTracer", { Text = "Tracers", Default = false })
+VisGroup:AddToggle("VisHead", { Text = "Head Indicator", Default = false })
+VisGroup:AddToggle("VisChams", { Text = "Player Chams", Default = false })
+
+local ColorGroup = Tabs.Visuals:AddRightGroupbox("Colors")
+ColorGroup:AddLabel("Enemy Color"):AddColorPicker("EnemyCol", { Default = Color3.fromRGB(255, 50, 50) })
+ColorGroup:AddLabel("Team Color"):AddColorPicker("TeamCol", { Default = Color3.fromRGB(50, 255, 50) })
+
+-- [ RENDER BIND - CORE LOGIC ] --
+RunService:BindToRenderStep("MspaintAim", Enum.RenderPriority.Camera.Value + 1, function()
+    FOVCircle.Visible = Toggles.AimbotEnabled.Value
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+    FOVCircle.Radius = Options.AimbotFOV.Value
+
+    local AimActive = Toggles.AimbotEnabled.Value and (Toggles.AlwaysOn.Value or Options.AimKey:GetState())
+    
+    if AimActive then
+        local NewTarget = GetClosestTarget()
+        if NewTarget then StickyTarget = NewTarget end
+    end
+
+    if StickyTarget then
+        local Hum = StickyTarget.Character and StickyTarget.Character:FindFirstChild("Humanoid")
+        if not StickyTarget.Character or not Hum or Hum.Health <= 0 then StickyTarget = nil end
+    end
+    if not AimActive then StickyTarget = nil end
+
+    -- KILL V1
+    if Toggles.KillV1Enabled.Value and StickyTarget and StickyTarget.Character then
+        local MyRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local TargetHead = StickyTarget.Character:FindFirstChild("Head")
+        if MyRoot and TargetHead then
+            local Pos = TargetHead.Position + Vector3.new(0.01, Options.KillHeight.Value, 0.01)
+            MyRoot.CFrame = CFrame.lookAt(Pos, TargetHead.Position)
+            MyRoot.Anchored = true
+        end
+    else
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.Anchored = false
+        end
+    end
+
+    -- AIMBOT (Hybrid Sticky)
+    if AimActive and StickyTarget and not Toggles.KillV1Enabled.Value then
+        local Part = StickyTarget.Character:FindFirstChild(Options.AimPart.Value)
+        if Part then
+            local PredPos = Part.Position + (Part.Velocity * (Options.Prediction.Value / 10))
+            local ScreenPos, OnScreen = Camera:WorldToViewportPoint(PredPos)
+            
+            if Options.AimMethod.Value == "Camera" or Options.AimMethod.Value == "Hybrid" then
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, PredPos), 1/Options.Smoothing.Value)
+            end
+            
+            if (Options.AimMethod.Value == "Mouse" or Options.AimMethod.Value == "Hybrid") and mousemoverel then
+                local MousePos = UserInputService:GetMouseLocation()
+                mousemoverel((ScreenPos.X - MousePos.X) / Options.Smoothing.Value, (ScreenPos.Y - MousePos.Y) / Options.Smoothing.Value)
+            end
+        end
+    end
+
+    -- ESP LOGIC
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player == LocalPlayer then continue end
+        local Char = Player.Character
+        local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+        local Hum = Char and Char:FindFirstChild("Humanoid")
+        
+        if Root and Hum and Hum.Health > 0 then
+            local Pos, OnScreen = Camera:WorldToViewportPoint(Root.Position)
+            if OnScreen then
+                if not ESP_Cache[Player] then
+                    ESP_Cache[Player] = {
+                        Corners = { Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line") },
+                        Skeleton = { Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line"), Drawing.new("Line") },
+                        HealthBar = Drawing.new("Line"),
+                        Name = Drawing.new("Text"),
+                        Tracer = Drawing.new("Line"),
+                        HeadDot = Drawing.new("Circle"),
+                        Chams = Instance.new("Highlight", game:GetService("CoreGui"))
+                    }
+                end
+                
+                local Obj = ESP_Cache[Player]
+                local Dist = (Camera.CFrame.Position - Root.Position).Magnitude
+                local MainCol = IsTeammate(Player) and Options.TeamCol.Value or Options.EnemyCol.Value
+                local Scale = 1/Pos.Z * 1000
+                local W, H = 2.5 * Scale, 4.5 * Scale
+                local X, Y = Pos.X - W/2, Pos.Y - H/2
+
+                -- Corner Box
+                for i, v in pairs(Obj.Corners) do v.Visible = Toggles.VisBox.Value; v.Color = MainCol; v.Thickness = 1 end
+                if Toggles.VisBox.Value then
+                    local L = W/4
+                    Obj.Corners[1].From = Vector2.new(X, Y); Obj.Corners[1].To = Vector2.new(X+L, Y)
+                    Obj.Corners[2].From = Vector2.new(X, Y); Obj.Corners[2].To = Vector2.new(X, Y+L)
+                    Obj.Corners[3].From = Vector2.new(X+W, Y); Obj.Corners[3].To = Vector2.new(X+W-L, Y)
+                    Obj.Corners[4].From = Vector2.new(X+W, Y); Obj.Corners[4].To = Vector2.new(X+W, Y+L)
+                    Obj.Corners[5].From = Vector2.new(X, Y+H); Obj.Corners[5].To = Vector2.new(X+L, Y+H)
+                    Obj.Corners[6].From = Vector2.new(X, Y+H); Obj.Corners[6].To = Vector2.new(X, Y+H-L)
+                    Obj.Corners[7].From = Vector2.new(X+W, Y+H); Obj.Corners[7].To = Vector2.new(X+W-L, Y+H)
+                    Obj.Corners[8].From = Vector2.new(X+W, Y+H); Obj.Corners[8].To = Vector2.new(X+W, Y+H-L)
+                end
+
+                -- Skeleton
+                for _, v in pairs(Obj.Skeleton) do v.Visible = Toggles.VisSkeleton.Value; v.Color = Color3.new(1,1,1); v.Thickness = 1 end
+                if Toggles.VisSkeleton.Value then
+                    local function GB(n) return Char:FindFirstChild(n) and Camera:WorldToViewportPoint(Char[n].Position) end
+                    local H, T, LL, RL, LA, RA = GB("Head"), GB("UpperTorso"), GB("LeftLowerLeg"), GB("RightLowerLeg"), GB("LeftLowerArm"), GB("RightLowerArm")
+                    if H and T and LL and RL and LA and RA then
+                        Obj.Skeleton[1].From = Vector2.new(H.X, H.Y); Obj.Skeleton[1].To = Vector2.new(T.X, T.Y)
+                        Obj.Skeleton[2].From = Vector2.new(T.X, T.Y); Obj.Skeleton[2].To = Vector2.new(LL.X, LL.Y)
+                        Obj.Skeleton[3].From = Vector2.new(T.X, T.Y); Obj.Skeleton[3].To = Vector2.new(RL.X, RL.Y)
+                        Obj.Skeleton[4].From = Vector2.new(T.X, T.Y); Obj.Skeleton[4].To = Vector2.new(LA.X, LA.Y)
+                        Obj.Skeleton[5].From = Vector2.new(T.X, T.Y); Obj.Skeleton[5].To = Vector2.new(RA.X, RA.Y)
+                    end
+                end
+
+                -- Health Bar
+                Obj.HealthBar.Visible = Toggles.VisHealth.Value
+                if Toggles.VisHealth.Value then
+                    Obj.HealthBar.From = Vector2.new(X-5, Y+H); Obj.HealthBar.To = Vector2.new(X-5, Y+H-(Hum.Health/Hum.MaxHealth*H))
+                    Obj.HealthBar.Color = Color3.fromHSV(math.clamp(Hum.Health/Hum.MaxHealth,0,0.35),0.9,0.9); Obj.HealthBar.Thickness = 2
+                end
+
+                -- Tracer
+                Obj.Tracer.Visible = Toggles.VisTracer.Value
+                if Toggles.VisTracer.Value then
+                    Obj.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y); Obj.Tracer.To = Vector2.new(Pos.X, Pos.Y); Obj.Tracer.Color = MainCol
+                end
+
+                -- Info / Dot / Chams
+                Obj.Name.Visible = Toggles.VisName.Value
+                if Toggles.VisName.Value then
+                    Obj.Name.Text = Player.Name:upper() .. " [" .. math.floor(Dist) .. "M]"
+                    Obj.Name.Position = Vector2.new(Pos.X, Y-20); Obj.Name.Center = true; Obj.Name.Outline = true; Obj.Name.Size = 13
+                end
+                Obj.HeadDot.Visible = Toggles.VisHead.Value
+                if Toggles.VisHead.Value and Char:FindFirstChild("Head") then
+                    local HPos = Camera:WorldToViewportPoint(Char.Head.Position)
+                    Obj.HeadDot.Position = Vector2.new(HPos.X, HPos.Y); Obj.HeadDot.Radius = Scale*0.7; Obj.HeadDot.Color = MainCol
+                end
+                Obj.Chams.Enabled = Toggles.VisChams.Value; Obj.Chams.Adornee = Char; Obj.Chams.FillColor = MainCol
+            else RemoveESP(Player) end
+        else RemoveESP(Player) end
+    end
+end)
+
+-- [ UI SETTINGS ] --
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = true, Text = "Menu keybind" })
+MenuGroup:AddButton("Unload", function() Library:Unload() end)
+
+Library.ToggleKeybind = Options.MenuKeybind
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+ThemeManager:SetFolder("MspaintTactical")
+SaveManager:SetFolder("MspaintTactical/main")
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
+SaveManager:LoadAutoloadConfig()
+
+Library:OnUnload(function()
+    RunService:UnbindFromRenderStep("MspaintAim")
+    FOVCircle:Remove()
+    for p, _ in pairs(ESP_Cache) do RemoveESP(p) end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.Anchored = false
+    end
+end)
+
+Players.PlayerRemoving:Connect(RemoveESP)
+Library:Notify("Tactical AIO | Rivals Team-Check (Billboard) Fix Loaded.")

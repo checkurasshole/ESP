@@ -104,7 +104,8 @@ function Aimbot:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
-            connection = RS.RenderStepped:Connect(function()
+            connection = true
+            RS:BindToRenderStep("MspaintAim", Enum.RenderPriority.Camera.Value + 1, function()
                 FOVCircle.Visible = (Aimbot.Settings.ShowFOV and true or false)
                 FOVCircle.Position = UserInputService:GetMouseLocation()
                 FOVCircle.Radius = Aimbot.Settings.FOVRadius
@@ -125,7 +126,7 @@ function Aimbot:Toggle(state)
                     local Part = StickyTarget.Character:FindFirstChild(Aimbot.Settings.TargetPart)
                     if Part then
                         local ScreenPos, OnScreen = Camera:WorldToViewportPoint(Part.Position)
-                        local smoothVal = math.max(Aimbot.Settings.Smoothness, 1)
+                        local smoothVal = Aimbot.Settings.Smoothness
 
                         if Aimbot.Settings.AimMethod == "Camera" then
                             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, Part.Position), 1 / smoothVal)
@@ -141,7 +142,7 @@ function Aimbot:Toggle(state)
         end
     else
         if connection then
-            connection:Disconnect()
+            RS:UnbindFromRenderStep("MspaintAim")
             connection = nil
         end
         FOVCircle.Visible = false
