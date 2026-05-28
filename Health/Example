@@ -1,7 +1,7 @@
 local ESP_Module = {Enabled = false}
 
 ESP_Module.Settings = {
-    MaxDistance = 10000,
+    MaxDistance = 500,
     LobbyCheck = false
 }
 

@@ -15,7 +15,6 @@ local Player = Players.LocalPlayer
 local RS = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
-local RS = game:GetService("RunService")
 local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local cache = {}

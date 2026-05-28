@@ -52,8 +52,8 @@ local function applySettings(name)
 		if Options.ESPDistanceLimit then
 			mod.Settings.MaxDistance = Options.ESPDistanceLimit.Value
 		end
-		if Toggles.ESPLobbyCheck then
-			mod.Settings.LobbyCheck = Toggles.ESPLobbyCheck.Value
+		if Toggles.GlobalLobbyCheck then
+			mod.Settings.LobbyCheck = Toggles.GlobalLobbyCheck.Value
 		end
 	end
 end
@@ -116,12 +116,13 @@ RightGroupBox:AddToggle("GlobalLobbyCheck", {
 	Default = false,
 	Tooltip = "Disables ESP and Aimbot while in spawn/lobby.",
 	Callback = function(Value)
-		updateAimbotSetting("LobbyCheck", Value)
 		for _, name in ipairs(espScripts) do
 			if loadedModules[name] and loadedModules[name].Settings then
 				loadedModules[name].Settings.LobbyCheck = Value
 			end
 		end
+		local amod = loadedModules["Aimbot"]
+		if amod and amod.Settings then amod.Settings.LobbyCheck = Value end
 	end
 })
 
@@ -319,7 +320,6 @@ end)
 
 Library:OnUnload(function()
     if ToggleGui then ToggleGui:Destroy() end
-    print("Unloaded Combowick")
 end)
 
 Library.ToggleKeybind = Options.MenuKeybind
