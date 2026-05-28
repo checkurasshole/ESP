@@ -6,7 +6,7 @@ ESP_Module.Settings = {
     OutlineColor = Color3.fromRGB(255, 255, 255),
     OutlineTransparency = 0,
     TeamCheck = true,
-    MaxDistance = 10000,
+    MaxDistance = 500,
     LobbyCheck = false,
 }
 

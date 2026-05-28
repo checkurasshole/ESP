@@ -36,7 +36,7 @@ ESP_Module.Settings = {
     Enemy = Color3.fromRGB(255, 0, 0),
     Health_Color = false,
     TeamCheck = true,
-    MaxDistance = 10000,
+    MaxDistance = 500,
     LobbyCheck = false,
 }
 local RadarInfo = ESP_Module.Settings

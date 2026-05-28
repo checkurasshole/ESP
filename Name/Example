@@ -8,7 +8,7 @@ ESP_Module.Settings = {
     ShowDistance = true,
     ShowHealth = true,
     ShowWeapon = true,
-    MaxDistance = 10000,
+    MaxDistance = 500,
     LobbyCheck = false,
 }
 

@@ -6,7 +6,7 @@ ESP_Module.Settings = {
     Transparency = 1,
     TeamCheck = true,
     TeamColor = false,
-    MaxDistance = 10000,
+    MaxDistance = 500,
     LobbyCheck = false,
 }
 
