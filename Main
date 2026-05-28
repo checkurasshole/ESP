@@ -21,6 +21,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
 	Aimbot = Window:AddTab("Aimbot", "crosshair"),
 	ESP = Window:AddTab("ESP Options", "eye"),
+	Misc = Window:AddTab("Misc", "shield"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -295,6 +296,32 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
 })
+
+--------------------------------------------------------------------------------
+-- MISC TAB
+--------------------------------------------------------------------------------
+local MiscSettingsBox = Tabs.Misc:AddLeftGroupbox("Anti-Cheat", "shield")
+
+MiscSettingsBox:AddButton("Execute Bypass", function()
+    local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/AntiCheatBypass.lua"
+    local success, module = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    if success and type(module) == "table" and type(module.Init) == "function" then
+        module:Init()
+        Library:Notify({
+            Title = "Success",
+            Description = "Anti-Cheat bypass executed!",
+            Time = 5,
+        })
+    else
+        Library:Notify({
+            Title = "Error",
+            Description = "Failed to load bypass",
+            Time = 5,
+        })
+    end
+end)
 
 --------------------------------------------------------------------------------
 -- UI SETTINGS TAB
