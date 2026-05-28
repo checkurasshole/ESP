@@ -15,6 +15,7 @@ local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local function NewLine()
     local line = Drawing.new("Line")
@@ -30,18 +31,18 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, v in ipairs(Players:GetPlayers()) do
-                    if v ~= Player then
-                        local char = v.Character
-                        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
-                            local rootPart = char.HumanoidRootPart
-                            local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                            local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
-                            
-                            local isLobby = false
-                            if ESP_Module.Settings.LobbyCheck then
-                                isLobby = LobbyDetector.IsPlayerInLobby(v) or LobbyDetector.LocalPlayerInLobby
-                            end
+                for _, target in ipairs(TargetManager.GetTargets()) do
+                    local v = target.Player or target.Character
+                    local char = target.Character
+                    if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
+                        local rootPart = char.HumanoidRootPart
+                        local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                        local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
+                        
+                        local isLobby = false
+                        if ESP_Module.Settings.LobbyCheck then
+                            isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
+                        end
                             
                             if onScreen and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[v] then
@@ -51,13 +52,15 @@ function ESP_Module:Toggle(state)
                                 local line = cache[v]
                                 
                                 local clr = ESP_Module.Settings.Color
-                                if ESP_Module.Settings.TeamCheck and v.TeamColor ~= Player.TeamColor then
-                                    clr = Color3.fromRGB(255, 0, 0)
-                                elseif ESP_Module.Settings.TeamCheck and v.TeamColor == Player.TeamColor then
-                                    clr = Color3.fromRGB(0, 255, 0)
+                                if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
+                                    if target.TeamColor ~= Player.TeamColor then
+                                        clr = Color3.fromRGB(255, 0, 0)
+                                    elseif target.TeamColor == Player.TeamColor then
+                                        clr = Color3.fromRGB(0, 255, 0)
+                                    end
                                 end
-                                if ESP_Module.Settings.TeamColor and v.TeamColor then
-                                    clr = v.TeamColor.Color
+                                if ESP_Module.Settings.TeamColor and target.TeamColor then
+                                    clr = target.TeamColor.Color
                                 end
                                 
                                 line.Color = clr

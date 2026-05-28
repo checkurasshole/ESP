@@ -32,6 +32,7 @@ local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
 local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 
 local loadedModules = {}
+local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local espScripts = {
 	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health"
@@ -129,6 +130,17 @@ RightGroupBox:AddToggle("GlobalLobbyCheck", {
 	end
 })
 
+RightGroupBox:AddToggle("GlobalNPCs", {
+	Text = "Include NPCs",
+	Default = false,
+	Tooltip = "Target NPCs with ESP, Aimbot, and Hitbox",
+	Callback = function(Value)
+		if TargetManager and TargetManager.Settings then
+			TargetManager.Settings.IncludeNPCs = Value
+		end
+	end
+})
+
 -- Team check toggles (right side) - default ON
 for _, name in ipairs(espScripts) do
 	if teamSupport[name] then
@@ -182,13 +194,34 @@ HitboxSettingsBox:AddToggle("HitboxToggle", {
     end
 })
 
-HitboxSettingsBox:AddSlider("HitboxSize", {
-    Text = "Hitbox Size",
-    Default = 8,
+HitboxSettingsBox:AddToggle("HitboxExpandHead", {
+    Text = "Expand Head",
+    Default = false,
+    Callback = function(Value) updateHitboxSetting("ExpandHead", Value) end
+})
+
+HitboxSettingsBox:AddSlider("HitboxHeadSize", {
+    Text = "Head Size",
+    Default = 10,
     Min = 1,
     Max = 30,
     Rounding = 1,
-    Callback = function(Value) updateHitboxSetting("Size", Value) end
+    Callback = function(Value) updateHitboxSetting("HeadSize", Value) end
+})
+
+HitboxSettingsBox:AddToggle("HitboxExpandHRP", {
+    Text = "Expand Torso (HRP)",
+    Default = true,
+    Callback = function(Value) updateHitboxSetting("ExpandHRP", Value) end
+})
+
+HitboxSettingsBox:AddSlider("HitboxHRPSize", {
+    Text = "Torso Size",
+    Default = 10,
+    Min = 1,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(Value) updateHitboxSetting("HRPSize", Value) end
 })
 
 HitboxChecksBox:AddToggle("HitboxTeamCheck", {

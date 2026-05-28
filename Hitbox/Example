@@ -1,7 +1,10 @@
 local Hitbox = {Enabled = false}
 
 Hitbox.Settings = {
-    Size = 8,
+    ExpandHead = false,
+    HeadSize = 10,
+    ExpandHRP = true,
+    HRPSize = 10,
     TeamCheck = false,
     LobbyCheck = false,
 }
@@ -10,108 +13,121 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
-local originals = {}
+local cache = {}
 local connection
-local seatConnections = {}
 
-local PARTS_TO_EXPAND = {"HumanoidRootPart", "Head"}
+local function CreateHitboxPart(name)
+    local p = Instance.new("Part")
+    p.Name = "ExpandedHitbox_" .. name
+    p.Transparency = 1
+    p.CanCollide = false
+    p.Massless = true
+    p.CastShadow = false
+    p.Shape = Enum.PartType.Block
+    return p
+end
 
-local function applyToPlayer(p)
-    if p == LocalPlayer then return end
-    local char = p.Character
+local function applyToTarget(target)
+    local char = target.Character
     if not char then return end
 
     local hum = char:FindFirstChild("Humanoid")
-    if not hum then return end
+    if not hum or hum.Health <= 0 then return end
 
-    local isLobby = Hitbox.Settings.LobbyCheck and (LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby)
-    local isTeammate = Hitbox.Settings.TeamCheck and p.Team == LocalPlayer.Team and p.Team ~= nil
+    local isLobby = false
+    if Hitbox.Settings.LobbyCheck then
+        isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
+    end
+    
+    local isTeammate = false
+    if Hitbox.Settings.TeamCheck and target.Type == "Player" then
+        isTeammate = target.Team == LocalPlayer.Team and target.Team ~= nil
+    end
 
-    if isLobby or isTeammate then
+    if isLobby or isTeammate or hum.Sit then
+        -- If they shouldn't have hitboxes, destroy them if they exist
+        if cache[target] then
+            for _, p in pairs(cache[target]) do
+                p:Destroy()
+            end
+            cache[target] = nil
+        end
         return
     end
 
-    if not originals[p] then
-        originals[p] = {}
+    if not cache[target] then
+        cache[target] = {}
     end
 
-    for _, partName in ipairs(PARTS_TO_EXPAND) do
-        local part = char:FindFirstChild(partName)
-        if part then
-            if not originals[p][partName] then
-                originals[p][partName] = part.Size
+    -- Process Head
+    if Hitbox.Settings.ExpandHead then
+        local head = char:FindFirstChild("Head")
+        if head then
+            local p = cache[target]["Head"]
+            if not p or not p.Parent then
+                p = CreateHitboxPart("Head")
+                p.CFrame = head.CFrame
+                p.Parent = char
+                local weld = Instance.new("WeldConstraint")
+                weld.Part0 = head
+                weld.Part1 = p
+                weld.Parent = p
+                cache[target]["Head"] = p
             end
-
-            local sitting = hum.Sit
-            if sitting then
-                part.Size = originals[p][partName]
-            else
-                local originalSize = originals[p][partName]
-                local targetSize = Vector3.new(
-                    math.max(originalSize.X, Hitbox.Settings.Size),
-                    math.max(originalSize.Y, Hitbox.Settings.Size),
-                    math.max(originalSize.Z, Hitbox.Settings.Size)
-                )
-                part.Size = targetSize
-                part.CanCollide = false
-                part.Massless = true
-                part.CastShadow = false
-            end
+            p.Size = Vector3.new(Hitbox.Settings.HeadSize, Hitbox.Settings.HeadSize, Hitbox.Settings.HeadSize)
+        end
+    else
+        if cache[target]["Head"] then
+            cache[target]["Head"]:Destroy()
+            cache[target]["Head"] = nil
         end
     end
-end
 
-local function restorePlayer(p)
-    if not originals[p] then return end
-    local char = p.Character
-    if char then
-        for partName, originalSize in pairs(originals[p]) do
-            local part = char:FindFirstChild(partName)
-            if part then
-                part.Size = originalSize
+    -- Process HRP
+    if Hitbox.Settings.ExpandHRP then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local p = cache[target]["HumanoidRootPart"]
+            if not p or not p.Parent then
+                p = CreateHitboxPart("HumanoidRootPart")
+                p.CFrame = hrp.CFrame
+                p.Parent = char
+                local weld = Instance.new("WeldConstraint")
+                weld.Part0 = hrp
+                weld.Part1 = p
+                weld.Parent = p
+                cache[target]["HumanoidRootPart"] = p
             end
+            p.Size = Vector3.new(Hitbox.Settings.HRPSize, Hitbox.Settings.HRPSize, Hitbox.Settings.HRPSize)
+        end
+    else
+        if cache[target]["HumanoidRootPart"] then
+            cache[target]["HumanoidRootPart"]:Destroy()
+            cache[target]["HumanoidRootPart"] = nil
         end
     end
-    originals[p] = nil
-end
-
-local function setupCharacterHooks(p)
-    if seatConnections[p] then
-        seatConnections[p]:Disconnect()
-        seatConnections[p] = nil
-    end
-    seatConnections[p] = p.CharacterAdded:Connect(function()
-        originals[p] = nil
-        task.wait(0.5)
-        if Hitbox.Enabled then
-            applyToPlayer(p)
-        end
-    end)
 end
 
 function Hitbox:Toggle(state)
     self.Enabled = state
     if state then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                applyToPlayer(p)
-                setupCharacterHooks(p)
-            end
-        end
-
-        Players.PlayerAdded:Connect(function(p)
-            if not Hitbox.Enabled then return end
-            task.wait(0.5)
-            applyToPlayer(p)
-            setupCharacterHooks(p)
-        end)
-
         if not connection then
             connection = RunService.Heartbeat:Connect(function()
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer then
-                        applyToPlayer(p)
+                for _, target in ipairs(TargetManager.GetTargets()) do
+                    applyToTarget(target)
+                end
+                
+                -- Cleanup dead/removed targets
+                local currentTargets = {}
+                for _, t in ipairs(TargetManager.GetTargets()) do
+                    currentTargets[t] = true
+                end
+                for target, parts in pairs(cache) do
+                    if not currentTargets[target] then
+                        for _, p in pairs(parts) do p:Destroy() end
+                        cache[target] = nil
                     end
                 end
             end)
@@ -121,14 +137,12 @@ function Hitbox:Toggle(state)
             connection:Disconnect()
             connection = nil
         end
-        for _, p in ipairs(Players:GetPlayers()) do
-            restorePlayer(p)
+        for _, parts in pairs(cache) do
+            for _, p in pairs(parts) do
+                if p then p:Destroy() end
+            end
         end
-        for p, conn in pairs(seatConnections) do
-            conn:Disconnect()
-        end
-        table.clear(seatConnections)
-        table.clear(originals)
+        table.clear(cache)
     end
 end
 

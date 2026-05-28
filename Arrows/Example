@@ -22,6 +22,7 @@ local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local V3 = Vector3.new
 local V2 = Vector2.new
@@ -74,22 +75,22 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= Player then
-                        local char = p.Character
-                        if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
-                            local isLobby = false
-                            if ESP_Module.Settings.LobbyCheck then
-                                isLobby = LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby
-                            end
+                for _, target in ipairs(TargetManager.GetTargets()) do
+                    local p = target.Player or target.Character
+                    local char = target.Character
+                    if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+                        local isLobby = false
+                        if ESP_Module.Settings.LobbyCheck then
+                            isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
+                        end
                             
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
                             local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
                             if not vis and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[p] then
                                     local clr = TriangleColor
-                                    if ESP_Module.Settings.TeamCheck then
-                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                    if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
+                                        clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                                     end
                                     cache[p] = DrawTriangle(clr)
                                 end
@@ -105,8 +106,8 @@ function ESP_Module:Toggle(state)
                                     local tip   = direction * (DistFromCenter + TriangleHeight)
 
                                     local clr = TriangleColor
-                                    if ESP_Module.Settings.TeamCheck then
-                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                    if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
+                                        clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                                     end
                                     arrow.Color = clr
 

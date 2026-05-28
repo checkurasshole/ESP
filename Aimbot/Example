@@ -19,6 +19,8 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
@@ -43,8 +45,12 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 end)
 
 -- Advanced Team Check
-local function IsTeammate(Player)
+local function IsTeammate(target)
     if not Aimbot.Settings.TeamCheck then return false end
+    if target.Type == "NPC" then return false end
+    
+    local Player = target.Player
+    if not Player then return false end
     
     if Player.Team == LocalPlayer.Team and Player.Team ~= nil then
         return true
@@ -54,7 +60,7 @@ local function IsTeammate(Player)
         return true
     end
 
-    local Char = Player.Character
+    local Char = target.Character
     if Char then
         local HRP = Char:FindFirstChild("HumanoidRootPart")
         if HRP and (HRP:FindFirstChild("teamatelabel") or HRP:FindFirstChild("TeammateLabel") or HRP:FindFirstChild("Marker")) then
@@ -79,23 +85,25 @@ end
 -- Exact Targeting Loop
 local function GetClosestTarget()
     local Target, Closest = nil, Aimbot.Settings.FOVRadius
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+    for _, target in ipairs(TargetManager.GetTargets()) do
+        local p = target.Player or target.Character
+        local char = target.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             
-            if Aimbot.Settings.LobbyCheck and (LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby) then continue end
-            if IsTeammate(p) then continue end
+            if Aimbot.Settings.LobbyCheck and (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player)) then continue end
+            if IsTeammate(target) then continue end
             
-            local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            local Pos, OnScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
             if OnScreen then
                 if Aimbot.Settings.WallCheck then
-                    local Parts = Camera:GetPartsObscuringTarget({p.Character.HumanoidRootPart.Position}, {LocalPlayer.Character, p.Character})
+                    local Parts = Camera:GetPartsObscuringTarget({char.HumanoidRootPart.Position}, {LocalPlayer.Character, char})
                     if #Parts > 0 then continue end
                 end
 
                 local Dist = (Vector2.new(Pos.X, Pos.Y) - UserInputService:GetMouseLocation()).Magnitude
                 if Dist < Closest then
                     Closest = Dist
-                    Target = p
+                    Target = target
                 end
             end
         end
