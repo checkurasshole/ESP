@@ -19,9 +19,11 @@ local Camera = cloneref(workspace.CurrentCamera)
 local cache = {}
 local connection
 
+local gethui = gethui or function() return CoreGui end
+
 local holder = Instance.new("Folder")
 holder.Name = "ESP_Highlights"
-pcall(function() holder.Parent = CoreGui end)
+pcall(function() holder.Parent = gethui() end)
 if not holder.Parent then
     holder.Parent = workspace
 end
