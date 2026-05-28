@@ -1,7 +1,9 @@
 local TargetManager = {}
 
 TargetManager.Settings = {
-    IncludeNPCs = false,
+    IncludeNPCs_ESP = false,
+    IncludeNPCs_Aimbot = false,
+    IncludeNPCs_Hitbox = false,
 }
 
 local Players = game:GetService("Players")
@@ -41,7 +43,7 @@ end
 -- Re-scan workspace every 5 seconds to find new NPCs without lagging the game
 local lastScan = 0
 RunService.Heartbeat:Connect(function()
-    if not TargetManager.Settings.IncludeNPCs then return end
+    if not (TargetManager.Settings.IncludeNPCs_ESP or TargetManager.Settings.IncludeNPCs_Aimbot or TargetManager.Settings.IncludeNPCs_Hitbox) then return end
     if tick() - lastScan > 5 then
         lastScan = tick()
         -- Use a coroutine so the scan doesn't block the render step
@@ -51,7 +53,7 @@ end)
 
 -- Listens to workspace additions to quickly catch newly spawned NPCs
 Workspace.DescendantAdded:Connect(function(desc)
-    if not TargetManager.Settings.IncludeNPCs then return end
+    if not (TargetManager.Settings.IncludeNPCs_ESP or TargetManager.Settings.IncludeNPCs_Aimbot or TargetManager.Settings.IncludeNPCs_Hitbox) then return end
     if desc:IsA("Model") then
         task.delay(1, function() -- wait for humanoid to load
             if desc.Parent and desc:FindFirstChild("Humanoid") and (desc.PrimaryPart or desc:FindFirstChild("HumanoidRootPart")) then
@@ -63,7 +65,7 @@ Workspace.DescendantAdded:Connect(function(desc)
     end
 end)
 
-function TargetManager.GetTargets()
+function TargetManager.GetTargets(moduleGroup)
     local targets = {}
     
     -- 1. Add Players
@@ -79,14 +81,20 @@ function TargetManager.GetTargets()
         end
     end
     
-    -- 2. Add NPCs if enabled
-    if TargetManager.Settings.IncludeNPCs then
+    -- 2. Add NPCs if enabled for this module group
+    local includeNpcs = false
+    if moduleGroup == "ESP" then includeNpcs = TargetManager.Settings.IncludeNPCs_ESP
+    elseif moduleGroup == "Aimbot" then includeNpcs = TargetManager.Settings.IncludeNPCs_Aimbot
+    elseif moduleGroup == "Hitbox" then includeNpcs = TargetManager.Settings.IncludeNPCs_Hitbox
+    end
+
+    if includeNpcs then
         for i = #cachedNPCs, 1, -1 do
             local npc = cachedNPCs[i]
             if npc and npc.Parent and npc:FindFirstChild("Humanoid") and npc:FindFirstChild("Humanoid").Health > 0 then
                 table.insert(targets, {
                     Type = "NPC",
-                    Player = nil, -- NPCs don't have a player object
+                    Player = nil,
                     Character = npc,
                     Team = nil,
                     TeamColor = nil

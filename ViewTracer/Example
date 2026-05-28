@@ -15,8 +15,8 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local function NewLine()
     local line = Drawing.new("Line")
@@ -32,7 +32,7 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, target in ipairs(TargetManager.GetTargets()) do
+                for _, target in ipairs(TargetManager.GetTargets("ESP")) do
                     local v = target.Player or target.Character
                     local char = target.Character
                     if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("Head") and char.Humanoid.Health > 0 then
@@ -107,3 +107,4 @@ function ESP_Module:Toggle(state)
 end
 
 return ESP_Module
+

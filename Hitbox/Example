@@ -12,8 +12,8 @@ Hitbox.Settings = {
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local cache = {}
 local connection
@@ -115,13 +115,13 @@ function Hitbox:Toggle(state)
     if state then
         if not connection then
             connection = RunService.Heartbeat:Connect(function()
-                for _, target in ipairs(TargetManager.GetTargets()) do
+                for _, target in ipairs(TargetManager.GetTargets("Hitbox")) do
                     applyToTarget(target)
                 end
                 
                 -- Cleanup dead/removed targets
                 local currentTargets = {}
-                for _, t in ipairs(TargetManager.GetTargets()) do
+                for _, t in ipairs(TargetManager.GetTargets("Hitbox")) do
                     currentTargets[t] = true
                 end
                 for target, parts in pairs(cache) do
@@ -147,3 +147,4 @@ function Hitbox:Toggle(state)
 end
 
 return Hitbox
+

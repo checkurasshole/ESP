@@ -6,8 +6,6 @@ local Mouse = Player:GetMouse()
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local function HealthBarLerp(t)
     return Color3.fromRGB(math.floor(255 * (1 - t)), math.floor(255 * t), 0)
@@ -93,6 +91,9 @@ function ESP_Module:Toggle(state)
         
         if not connection then
             connection = RS.RenderStepped:Connect(function()
+                local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+                local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+                
                 background.Position = RadarInfo.Position
                 background.Radius = RadarInfo.Radius
                 background.Color = RadarInfo.RadarBack
@@ -116,7 +117,7 @@ function ESP_Module:Toggle(state)
                     RadarInfo.Position = Vector2.new(Mouse.X, Mouse.Y) + offset
                 end
 
-                for _, target in ipairs(TargetManager.GetTargets()) do
+                for _, target in ipairs(TargetManager.GetTargets("ESP")) do
                     local plr = target.Player or target.Character
                     local char = target.Character
                     if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
@@ -124,12 +125,17 @@ function ESP_Module:Toggle(state)
                         if RadarInfo.LobbyCheck then
                             isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
                         end
-                            local dist = (char.PrimaryPart.Position - Player.Character.PrimaryPart.Position).Magnitude
-                            
-                            if not isLobby and dist <= RadarInfo.MaxDistance then
-                                if not cache[plr] then
-                                    cache[plr] = NewCircle(1, RadarInfo.PlayerDot, 3, true, 1)
-                                end
+                        
+                        -- Avoid crash if local player hasn't loaded
+                        local localChar = Player.Character
+                        if not localChar or not localChar.PrimaryPart then continue end
+                        
+                        local dist = (char.PrimaryPart.Position - localChar.PrimaryPart.Position).Magnitude
+                        
+                        if not isLobby and dist <= RadarInfo.MaxDistance then
+                            if not cache[plr] then
+                                cache[plr] = NewCircle(1, RadarInfo.PlayerDot, 3, true, 1)
+                            end
                             local dot = cache[plr]
                             local hum = char:FindFirstChildOfClass("Humanoid")
                             local scale = RadarInfo.Scale
@@ -140,8 +146,8 @@ function ESP_Module:Toggle(state)
                                 dot.Radius = 3   
                                 dot.Position = newpos
                             else 
-                                local dist = (RadarInfo.Position - newpos).Magnitude
-                                local calc = (RadarInfo.Position - newpos).Unit * (dist - RadarInfo.Radius)
+                                local relDist = (RadarInfo.Position - newpos).Magnitude
+                                local calc = (RadarInfo.Position - newpos).Unit * (relDist - RadarInfo.Radius)
                                 dot.Radius = 2
                                 dot.Position = Vector2.new(newpos.X + calc.X, newpos.Y + calc.Y)
                             end
@@ -153,12 +159,16 @@ function ESP_Module:Toggle(state)
                                 local sameTeam = target.Team ~= nil and Player.Team ~= nil and target.Team == Player.Team
                                 dot.Color = sameTeam and RadarInfo.Team or RadarInfo.Enemy
                             end
+                            
                             if RadarInfo.Health_Color then
                                 dot.Color = HealthBarLerp(hum.Health / hum.MaxHealth)
+                            end
                             dot.Visible = true
                         else
                             if cache[plr] then cache[plr].Visible = false end
                         end
+                    else
+                        if cache[plr] then cache[plr].Visible = false end
                     end
                 end
                 

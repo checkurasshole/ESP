@@ -21,8 +21,6 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local V3 = Vector3.new
 local V2 = Vector2.new
@@ -34,7 +32,7 @@ local DRAWING = Drawing.new
 local ROUND = math.round
 
 local function GetRelative(pos, char)
-    if not char then return V2(0,0) end
+    if not char or not char.PrimaryPart then return V2(0,0) end
     local rootP = char.PrimaryPart.Position
     local camP = Camera.CFrame.Position
     local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
@@ -75,7 +73,10 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, target in ipairs(TargetManager.GetTargets()) do
+                local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+                local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+                
+                for _, target in ipairs(TargetManager.GetTargets("ESP")) do
                     local p = target.Player or target.Character
                     local char = target.Character
                     if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
@@ -83,47 +84,55 @@ function ESP_Module:Toggle(state)
                         if ESP_Module.Settings.LobbyCheck then
                             isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
                         end
+                        
+                        -- Avoid crash if LocalPlayer hasn't loaded
+                        local localChar = Player.Character
+                        if not localChar or not localChar.PrimaryPart then continue end
+                        
+                        local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
+                        local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
+                        
+                        if not vis and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+                            if not cache[p] then
+                                local clr = TriangleColor
+                                if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
+                                    clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                end
+                                cache[p] = DrawTriangle(clr)
+                            end
+                            local arrow = cache[p]
+
+                            local rel = GetRelative(char.PrimaryPart.Position, localChar)
+                            local direction = V2(0,0)
+                            if rel.Magnitude > 0 then
+                                direction = rel.Unit
+                            end
                             
-                            local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
-                            local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
-                            if not vis and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
-                                if not cache[p] then
-                                    local clr = TriangleColor
-                                    if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
-                                        clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                                    end
-                                    cache[p] = DrawTriangle(clr)
+                            if direction.Magnitude > 0 and direction == direction then -- check for NaN just in case
+                                local base  = direction * DistFromCenter
+                                local sideL = DistFromCenter / 2
+                                local baseL = base + RotateVect(direction,  90) * (TriangleWidth / 2)
+                                local baseR = base + RotateVect(direction, -90) * (TriangleWidth / 2)
+                                local tip   = direction * (DistFromCenter + TriangleHeight)
+
+                                local clr = TriangleColor
+                                if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
+                                    clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                                 end
-                                local arrow = cache[p]
+                                arrow.Color = clr
 
-                                local rel = GetRelative(char.PrimaryPart.Position, Player.Character)
-                                local direction = rel.Unit
-                                if direction.Magnitude > 0 then
-                                    local base  = direction * DistFromCenter
-                                    local sideL = DistFromCenter / 2
-                                    local baseL = base + RotateVect(direction,  90) * (TriangleWidth / 2)
-                                    local baseR = base + RotateVect(direction, -90) * (TriangleWidth / 2)
-                                    local tip   = direction * (DistFromCenter + TriangleHeight)
-
-                                    local clr = TriangleColor
-                                    if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
-                                        clr = (target.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-                                    end
-                                    arrow.Color = clr
-
-                                    arrow.PointA = AntiA(RelativeToCenter(baseL))
-                                    arrow.PointB = AntiA(RelativeToCenter(baseR))
-                                    arrow.PointC = AntiA(RelativeToCenter(tip))
-                                    arrow.Visible = true
-                                else
-                                    arrow.Visible = false
-                                end
+                                arrow.PointA = AntiA(RelativeToCenter(baseL))
+                                arrow.PointB = AntiA(RelativeToCenter(baseR))
+                                arrow.PointC = AntiA(RelativeToCenter(tip))
+                                arrow.Visible = true
                             else
-                                if cache[p] then cache[p].Visible = false end
+                                arrow.Visible = false
                             end
                         else
                             if cache[p] then cache[p].Visible = false end
                         end
+                    else
+                        if cache[p] then cache[p].Visible = false end
                     end
                 end
 

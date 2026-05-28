@@ -32,7 +32,9 @@ local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
 local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 
 local loadedModules = {}
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+getgenv().ESP_LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+getgenv().ESP_TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local TargetManager = getgenv().ESP_TargetManager
 
 local espScripts = {
 	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health"
@@ -87,13 +89,15 @@ for _, name in ipairs(espScripts) do
 		Default = false,
 		Tooltip = "Toggle " .. name .. " ESP",
 		Callback = function(Value)
-			if not loadESP(name) then
-				Toggles[name .. "Toggle"]:SetValue(false)
-				return
-			end
-			if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
-				loadedModules[name]:Toggle(Value)
-			end
+			task.spawn(function()
+				if not loadESP(name) then
+					Toggles[name .. "Toggle"]:SetValue(false)
+					return
+				end
+				if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
+					loadedModules[name]:Toggle(Value)
+				end
+			end)
 		end,
 	})
 end
@@ -130,13 +134,13 @@ RightGroupBox:AddToggle("GlobalLobbyCheck", {
 	end
 })
 
-RightGroupBox:AddToggle("GlobalNPCs", {
-	Text = "Include NPCs",
+RightGroupBox:AddToggle("GlobalNPCs_ESP", {
+	Text = "Show NPCs (ESP)",
 	Default = false,
-	Tooltip = "Target NPCs with ESP, Aimbot, and Hitbox",
+	Tooltip = "Target NPCs with Visual ESPs",
 	Callback = function(Value)
 		if TargetManager and TargetManager.Settings then
-			TargetManager.Settings.IncludeNPCs = Value
+			TargetManager.Settings.IncludeNPCs_ESP = Value
 		end
 	end
 })
@@ -189,8 +193,10 @@ HitboxSettingsBox:AddToggle("HitboxToggle", {
     Text = "Enable Hitbox",
     Default = false,
     Callback = function(Value)
-        local mod = getHitboxMod()
-        if mod then mod:Toggle(Value) end
+        task.spawn(function()
+            local mod = getHitboxMod()
+            if mod then mod:Toggle(Value) end
+        end)
     end
 })
 
@@ -231,6 +237,17 @@ HitboxChecksBox:AddToggle("HitboxTeamCheck", {
     Callback = function(Value) updateHitboxSetting("TeamCheck", Value) end
 })
 
+HitboxChecksBox:AddToggle("HitboxNPCs", {
+    Text = "Target NPCs",
+    Default = false,
+    Tooltip = "Expand Hitboxes for NPCs",
+    Callback = function(Value)
+        if TargetManager and TargetManager.Settings then
+            TargetManager.Settings.IncludeNPCs_Hitbox = Value
+        end
+    end
+})
+
 --------------------------------------------------------------------------------
 -- AIMBOT TAB
 --------------------------------------------------------------------------------
@@ -263,8 +280,10 @@ AimSettingsBox:AddToggle("AimbotToggle", {
     Text = "Enable Aimbot",
     Default = false,
     Callback = function(Value)
-        local mod = getAimbotMod()
-        if mod then mod:Toggle(Value) end
+        task.spawn(function()
+            local mod = getAimbotMod()
+            if mod then mod:Toggle(Value) end
+        end)
     end
 })
 
@@ -338,6 +357,17 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Text = "Wall Check",
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
+})
+
+AimFOVBox:AddToggle("AimbotNPCs", {
+    Text = "Target NPCs",
+    Default = false,
+    Tooltip = "Aimbot locks onto NPCs",
+    Callback = function(Value)
+        if TargetManager and TargetManager.Settings then
+            TargetManager.Settings.IncludeNPCs_Aimbot = Value
+        end
+    end
 })
 
 --------------------------------------------------------------------------------

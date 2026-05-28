@@ -19,8 +19,8 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false
@@ -85,7 +85,7 @@ end
 -- Exact Targeting Loop
 local function GetClosestTarget()
     local Target, Closest = nil, Aimbot.Settings.FOVRadius
-    for _, target in ipairs(TargetManager.GetTargets()) do
+    for _, target in ipairs(TargetManager.GetTargets("Aimbot")) do
         local p = target.Player or target.Character
         local char = target.Character
         if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
@@ -166,3 +166,4 @@ function Aimbot:Toggle(state)
 end
 
 return Aimbot
+

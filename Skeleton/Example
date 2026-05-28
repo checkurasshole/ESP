@@ -24,15 +24,15 @@ local function NewLine()
     return line
 end
 
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
 
 function ESP_Module:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, target in ipairs(TargetManager.GetTargets()) do
+                for _, target in ipairs(TargetManager.GetTargets("ESP")) do
                     local v = target.Player or target.Character
                     local char = target.Character
                     if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
@@ -130,3 +130,4 @@ function ESP_Module:Toggle(state)
 end
 
 return ESP_Module
+
