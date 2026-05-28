@@ -21,7 +21,6 @@ local Window = Library:CreateWindow({
 local Tabs = {
 	Aimbot = Window:AddTab("Aimbot", "crosshair"),
 	ESP = Window:AddTab("ESP Options", "eye"),
-	Hitbox = Window:AddTab("Hitbox", "target"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -32,18 +31,15 @@ local LeftGroupBox = Tabs.ESP:AddLeftGroupbox("Visuals", "boxes")
 local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 
 local loadedModules = {}
-getgenv().ESP_LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-getgenv().ESP_TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
-local TargetManager = getgenv().ESP_TargetManager
 
 local espScripts = {
-	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health"
+	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health", "Hitbox"
 }
 
 -- ESPs that support team check
 local teamSupport = {
 	Arrows = true, Chams = true, Name = true,
-	Tracers = true, ViewTracer = true, Radar = true,
+	Tracers = true, ViewTracer = true, Radar = true, Hitbox = true,
 }
 
 local function applySettings(name)
@@ -58,6 +54,12 @@ local function applySettings(name)
 		end
 		if Toggles.GlobalLobbyCheck then
 			mod.Settings.LobbyCheck = Toggles.GlobalLobbyCheck.Value
+		end
+		if name == "Hitbox" then
+			if Options.HitboxTarget then mod.Settings.TargetPart = Options.HitboxTarget.Value end
+			if Options.HitboxHeadSize then mod.Settings.HeadSize = Options.HitboxHeadSize.Value end
+			if Options.HitboxHRPSize then mod.Settings.HRPSize = Options.HitboxHRPSize.Value end
+			if Options.HitboxTransparency then mod.Settings.Transparency = Options.HitboxTransparency.Value end
 		end
 	end
 end
@@ -89,15 +91,13 @@ for _, name in ipairs(espScripts) do
 		Default = false,
 		Tooltip = "Toggle " .. name .. " ESP",
 		Callback = function(Value)
-			task.spawn(function()
-				if not loadESP(name) then
-					Toggles[name .. "Toggle"]:SetValue(false)
-					return
-				end
-				if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
-					loadedModules[name]:Toggle(Value)
-				end
-			end)
+			if not loadESP(name) then
+				Toggles[name .. "Toggle"]:SetValue(false)
+				return
+			end
+			if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
+				loadedModules[name]:Toggle(Value)
+			end
 		end,
 	})
 end
@@ -129,19 +129,6 @@ RightGroupBox:AddToggle("GlobalLobbyCheck", {
 		end
 		local amod = loadedModules["Aimbot"]
 		if amod and amod.Settings then amod.Settings.LobbyCheck = Value end
-		local hmod = loadedModules["Hitbox"]
-		if hmod and hmod.Settings then hmod.Settings.LobbyCheck = Value end
-	end
-})
-
-RightGroupBox:AddToggle("GlobalNPCs_ESP", {
-	Text = "Show NPCs (ESP)",
-	Default = false,
-	Tooltip = "Target NPCs with Visual ESPs",
-	Callback = function(Value)
-		if TargetManager and TargetManager.Settings then
-			TargetManager.Settings.IncludeNPCs_ESP = Value
-		end
 	end
 })
 
@@ -162,90 +149,58 @@ for _, name in ipairs(espScripts) do
 end
 
 --------------------------------------------------------------------------------
--- HITBOX TAB
+-- HITBOX CONFIGURATION
 --------------------------------------------------------------------------------
-local HitboxSettingsBox = Tabs.Hitbox:AddLeftGroupbox("Hitbox Settings", "target")
-local HitboxChecksBox = Tabs.Hitbox:AddRightGroupbox("Checks", "shield")
+local HitboxBox = Tabs.ESP:AddLeftGroupbox("Hitbox Config", "target")
 
-local function getHitboxMod()
-    if not loadedModules["Hitbox"] then
-        local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/Hitbox/Example"
-        local success, module = pcall(function()
-            return loadstring(game:HttpGet(url))()
-        end)
-        if success and type(module) == "table" then
-            loadedModules["Hitbox"] = module
-        else
-            Library:Notify({Title = "Error", Description = "Failed to load Hitbox", Time = 5})
-        end
-    end
-    return loadedModules["Hitbox"]
-end
-
-local function updateHitboxSetting(key, value)
-    local mod = getHitboxMod()
-    if mod and mod.Settings then
-        mod.Settings[key] = value
-    end
-end
-
-HitboxSettingsBox:AddToggle("HitboxToggle", {
-    Text = "Enable Hitbox",
-    Default = false,
-    Callback = function(Value)
-        task.spawn(function()
-            local mod = getHitboxMod()
-            if mod then mod:Toggle(Value) end
-        end)
-    end
+HitboxBox:AddDropdown("HitboxTarget", {
+	Values = { "Head", "HRP", "Both" },
+	Default = "Both",
+	Text = "Target Part",
+	Callback = function(Value)
+		if loadedModules["Hitbox"] and loadedModules["Hitbox"].Settings then
+			loadedModules["Hitbox"].Settings.TargetPart = Value
+		end
+	end
 })
 
-HitboxSettingsBox:AddToggle("HitboxExpandHead", {
-    Text = "Expand Head",
-    Default = false,
-    Callback = function(Value) updateHitboxSetting("ExpandHead", Value) end
+HitboxBox:AddSlider("HitboxHeadSize", {
+	Text = "Head Size",
+	Default = 5,
+	Min = 1,
+	Max = 50,
+	Rounding = 1,
+	Callback = function(Value)
+		if loadedModules["Hitbox"] and loadedModules["Hitbox"].Settings then
+			loadedModules["Hitbox"].Settings.HeadSize = Value
+		end
+	end
 })
 
-HitboxSettingsBox:AddSlider("HitboxHeadSize", {
-    Text = "Head Size",
-    Default = 10,
-    Min = 1,
-    Max = 30,
-    Rounding = 1,
-    Callback = function(Value) updateHitboxSetting("HeadSize", Value) end
+HitboxBox:AddSlider("HitboxHRPSize", {
+	Text = "HRP Size",
+	Default = 5,
+	Min = 1,
+	Max = 50,
+	Rounding = 1,
+	Callback = function(Value)
+		if loadedModules["Hitbox"] and loadedModules["Hitbox"].Settings then
+			loadedModules["Hitbox"].Settings.HRPSize = Value
+		end
+	end
 })
 
-HitboxSettingsBox:AddToggle("HitboxExpandHRP", {
-    Text = "Expand Torso (HRP)",
-    Default = true,
-    Callback = function(Value) updateHitboxSetting("ExpandHRP", Value) end
-})
-
-HitboxSettingsBox:AddSlider("HitboxHRPSize", {
-    Text = "Torso Size",
-    Default = 10,
-    Min = 1,
-    Max = 30,
-    Rounding = 1,
-    Callback = function(Value) updateHitboxSetting("HRPSize", Value) end
-})
-
-HitboxChecksBox:AddToggle("HitboxTeamCheck", {
-    Text = "Team Check",
-    Default = false,
-    Tooltip = "Skip expanding teammates hitboxes",
-    Callback = function(Value) updateHitboxSetting("TeamCheck", Value) end
-})
-
-HitboxChecksBox:AddToggle("HitboxNPCs", {
-    Text = "Target NPCs",
-    Default = false,
-    Tooltip = "Expand Hitboxes for NPCs",
-    Callback = function(Value)
-        if TargetManager and TargetManager.Settings then
-            TargetManager.Settings.IncludeNPCs_Hitbox = Value
-        end
-    end
+HitboxBox:AddSlider("HitboxTransparency", {
+	Text = "Transparency",
+	Default = 0.5,
+	Min = 0,
+	Max = 1,
+	Rounding = 2,
+	Callback = function(Value)
+		if loadedModules["Hitbox"] and loadedModules["Hitbox"].Settings then
+			loadedModules["Hitbox"].Settings.Transparency = Value
+		end
+	end
 })
 
 --------------------------------------------------------------------------------
@@ -280,10 +235,8 @@ AimSettingsBox:AddToggle("AimbotToggle", {
     Text = "Enable Aimbot",
     Default = false,
     Callback = function(Value)
-        task.spawn(function()
-            local mod = getAimbotMod()
-            if mod then mod:Toggle(Value) end
-        end)
+        local mod = getAimbotMod()
+        if mod then mod:Toggle(Value) end
     end
 })
 
@@ -357,17 +310,6 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Text = "Wall Check",
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
-})
-
-AimFOVBox:AddToggle("AimbotNPCs", {
-    Text = "Target NPCs",
-    Default = false,
-    Tooltip = "Aimbot locks onto NPCs",
-    Callback = function(Value)
-        if TargetManager and TargetManager.Settings then
-            TargetManager.Settings.IncludeNPCs_Aimbot = Value
-        end
-    end
 })
 
 --------------------------------------------------------------------------------
