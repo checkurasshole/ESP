@@ -21,6 +21,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
 	Aimbot = Window:AddTab("Aimbot", "crosshair"),
 	ESP = Window:AddTab("ESP Options", "eye"),
+	Hitbox = Window:AddTab("Hitbox", "target"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -123,6 +124,8 @@ RightGroupBox:AddToggle("GlobalLobbyCheck", {
 		end
 		local amod = loadedModules["Aimbot"]
 		if amod and amod.Settings then amod.Settings.LobbyCheck = Value end
+		local hmod = loadedModules["Hitbox"]
+		if hmod and hmod.Settings then hmod.Settings.LobbyCheck = Value end
 	end
 })
 
@@ -141,6 +144,59 @@ for _, name in ipairs(espScripts) do
 		})
 	end
 end
+
+--------------------------------------------------------------------------------
+-- HITBOX TAB
+--------------------------------------------------------------------------------
+local HitboxSettingsBox = Tabs.Hitbox:AddLeftGroupbox("Hitbox Settings", "target")
+local HitboxChecksBox = Tabs.Hitbox:AddRightGroupbox("Checks", "shield")
+
+local function getHitboxMod()
+    if not loadedModules["Hitbox"] then
+        local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/Hitbox/Example"
+        local success, module = pcall(function()
+            return loadstring(game:HttpGet(url))()
+        end)
+        if success and type(module) == "table" then
+            loadedModules["Hitbox"] = module
+        else
+            Library:Notify({Title = "Error", Description = "Failed to load Hitbox", Time = 5})
+        end
+    end
+    return loadedModules["Hitbox"]
+end
+
+local function updateHitboxSetting(key, value)
+    local mod = getHitboxMod()
+    if mod and mod.Settings then
+        mod.Settings[key] = value
+    end
+end
+
+HitboxSettingsBox:AddToggle("HitboxToggle", {
+    Text = "Enable Hitbox",
+    Default = false,
+    Callback = function(Value)
+        local mod = getHitboxMod()
+        if mod then mod:Toggle(Value) end
+    end
+})
+
+HitboxSettingsBox:AddSlider("HitboxSize", {
+    Text = "Hitbox Size",
+    Default = 8,
+    Min = 1,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(Value) updateHitboxSetting("Size", Value) end
+})
+
+HitboxChecksBox:AddToggle("HitboxTeamCheck", {
+    Text = "Team Check",
+    Default = false,
+    Tooltip = "Skip expanding teammates hitboxes",
+    Callback = function(Value) updateHitboxSetting("TeamCheck", Value) end
+})
 
 --------------------------------------------------------------------------------
 -- AIMBOT TAB
