@@ -42,13 +42,6 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
-local function IsInLobby(p)
-    if not p or not p.Character then return false end
-    if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
-end
-
 -- Advanced Team Check
 local function IsTeammate(Player)
     if not Aimbot.Settings.TeamCheck then return false end
@@ -89,7 +82,7 @@ local function GetClosestTarget()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
             
-            if Aimbot.Settings.LobbyCheck and (IsInLobby(p) or IsInLobby(LocalPlayer)) then continue end
+            if Aimbot.Settings.LobbyCheck and (LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby) then continue end
             if IsTeammate(p) then continue end
             
             local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)

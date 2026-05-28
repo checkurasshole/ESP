@@ -15,13 +15,8 @@ local Player = Players.LocalPlayer
 local RS = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
-
-local function IsInLobby(p)
-    if not p or not p.Character then return false end
-    if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
-end
+local RS = game:GetService("RunService")
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local cache = {}
 local connection
@@ -54,7 +49,7 @@ function ESP_Module:Toggle(state)
                         if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
                             local isLobby = false
                             if ESP_Module.Settings.LobbyCheck then
-                                isLobby = IsInLobby(plr) or IsInLobby(Player)
+                                isLobby = LobbyDetector.IsPlayerInLobby(plr) or LobbyDetector.LocalPlayerInLobby
                             end
                             
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude

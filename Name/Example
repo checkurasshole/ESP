@@ -16,13 +16,7 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-
-local function IsInLobby(p)
-    if not p or not p.Character then return false end
-    if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
-end
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local function HealthBarLerp(t)
     -- t=0 is dead (red), t=1 is full HP (green)
@@ -68,7 +62,7 @@ function ESP_Module:Toggle(state)
                             
                             local isLobby = false
                             if ESP_Module.Settings.LobbyCheck then
-                                isLobby = IsInLobby(v) or IsInLobby(Player)
+                                isLobby = LobbyDetector.IsPlayerInLobby(v) or LobbyDetector.LocalPlayerInLobby
                             end
                             
                             if onScreen and not isLobby and dist <= ESP_Module.Settings.MaxDistance then

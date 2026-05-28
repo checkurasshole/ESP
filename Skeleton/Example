@@ -24,12 +24,7 @@ local function NewLine()
     return line
 end
 
-local function IsInLobby(p)
-    if not p or not p.Character then return false end
-    if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
-end
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 function ESP_Module:Toggle(state)
     self.Enabled = state
@@ -45,7 +40,7 @@ function ESP_Module:Toggle(state)
                             
                             local isLobby = false
                             if ESP_Module.Settings.LobbyCheck then
-                                isLobby = IsInLobby(v) or IsInLobby(Player)
+                                isLobby = LobbyDetector.IsPlayerInLobby(v) or LobbyDetector.LocalPlayerInLobby
                             end
                             
                             if not cache[v] then

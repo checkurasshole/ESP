@@ -39,13 +39,6 @@ local function GetRelative(pos, char)
     return V2(relative.X, relative.Z)
 end
 
-local function IsInLobby(p)
-    if not p or not p.Character then return false end
-    if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
-end
-
 local function RelativeToCenter(v)
     return Camera.ViewportSize/2 - v
 end
@@ -86,7 +79,7 @@ function ESP_Module:Toggle(state)
                         if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
                             local isLobby = false
                             if ESP_Module.Settings.LobbyCheck then
-                                isLobby = IsInLobby(p) or IsInLobby(Player)
+                                isLobby = LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby
                             end
                             
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
