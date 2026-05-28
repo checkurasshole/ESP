@@ -16,7 +16,7 @@ local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
 local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
-local originalStates = {}
+local originalStates = setmetatable({}, {__mode = "k"})
 local connection
 
 local function SaveState(part)
@@ -34,10 +34,10 @@ end
 local function RestoreState(part)
     if not part then return end
     if originalStates[part] then
-        part.Size = originalStates[part].Size
-        part.Transparency = originalStates[part].Transparency
-        part.CanCollide = originalStates[part].CanCollide
-        part.Massless = originalStates[part].Massless
+        if part.Size ~= originalStates[part].Size then part.Size = originalStates[part].Size end
+        if part.Transparency ~= originalStates[part].Transparency then part.Transparency = originalStates[part].Transparency end
+        if part.CanCollide ~= originalStates[part].CanCollide then part.CanCollide = originalStates[part].CanCollide end
+        if part.Massless ~= originalStates[part].Massless then part.Massless = originalStates[part].Massless end
         originalStates[part] = nil
     end
 end
@@ -69,10 +69,11 @@ local function ApplyHitbox(plr)
         if hrp then
             SaveState(hrp)
             if ESP_Module.Settings.TargetPart == "HRP" or ESP_Module.Settings.TargetPart == "Both" then
-                hrp.Size = Vector3.new(ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize)
-                hrp.Transparency = ESP_Module.Settings.Transparency
-                hrp.CanCollide = false
-                hrp.Massless = true
+                local tSize = Vector3.new(ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize)
+                if hrp.Size ~= tSize then hrp.Size = tSize end
+                if hrp.Transparency ~= ESP_Module.Settings.Transparency then hrp.Transparency = ESP_Module.Settings.Transparency end
+                if hrp.CanCollide ~= false then hrp.CanCollide = false end
+                if hrp.Massless ~= true then hrp.Massless = true end
             else
                 RestoreState(hrp)
             end
@@ -82,10 +83,11 @@ local function ApplyHitbox(plr)
         if head then
             SaveState(head)
             if ESP_Module.Settings.TargetPart == "Head" or ESP_Module.Settings.TargetPart == "Both" then
-                head.Size = Vector3.new(ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize)
-                head.Transparency = ESP_Module.Settings.Transparency
-                head.CanCollide = false
-                head.Massless = true
+                local tSize = Vector3.new(ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize)
+                if head.Size ~= tSize then head.Size = tSize end
+                if head.Transparency ~= ESP_Module.Settings.Transparency then head.Transparency = ESP_Module.Settings.Transparency end
+                if head.CanCollide ~= false then head.CanCollide = false end
+                if head.Massless ~= true then head.Massless = true end
             else
                 RestoreState(head)
             end
@@ -125,12 +127,7 @@ function ESP_Module:Toggle(state)
 end
 
 Players.PlayerRemoving:Connect(function(plr)
-    if plr.Character then
-        local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-        local head = plr.Character:FindFirstChild("Head")
-        if hrp then originalStates[hrp] = nil end
-        if head then originalStates[head] = nil end
-    end
+    -- Weak table automatically handles garbage collection when parts are destroyed
 end)
 
 return ESP_Module
