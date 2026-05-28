@@ -115,7 +115,7 @@ function Aimbot:Toggle(state)
                 FOVCircle.Color = Aimbot.Settings.FOVColor
 
                 local isAiming = Aimbot.Settings.AlwaysOn or AimActive
-                if Aimbot.Settings.LobbyCheck and IsInLobby(LocalPlayer) then isAiming = false end
+                if Aimbot.Settings.LobbyCheck and LobbyDetector.LocalPlayerInLobby then isAiming = false end
 
                 if isAiming then
                     local NewTarget = GetClosestTarget()

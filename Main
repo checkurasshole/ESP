@@ -111,10 +111,12 @@ RightGroupBox:AddSlider("ESPDistanceLimit", {
 	end
 })
 
-RightGroupBox:AddToggle("ESPLobbyCheck", {
-	Text = "Lobby Check (Ignore if in spawn/lobby)",
+RightGroupBox:AddToggle("GlobalLobbyCheck", {
+	Text = "Global Lobby Check",
 	Default = false,
+	Tooltip = "Disables ESP and Aimbot while in spawn/lobby.",
 	Callback = function(Value)
+		updateAimbotSetting("LobbyCheck", Value)
 		for _, name in ipairs(espScripts) do
 			if loadedModules[name] and loadedModules[name].Settings then
 				loadedModules[name].Settings.LobbyCheck = Value
@@ -246,12 +248,6 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Text = "Wall Check",
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
-})
-
-AimFOVBox:AddToggle("AimbotLobbyCheck", {
-    Text = "Lobby Check (Ignore if in spawn/lobby)",
-    Default = false,
-    Callback = function(Value) updateAimbotSetting("LobbyCheck", Value) end
 })
 
 --------------------------------------------------------------------------------
