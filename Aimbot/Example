@@ -5,7 +5,6 @@ Aimbot.Settings = {
     TargetPart = "Head",
     Smoothness = 2, -- 1 to 20
     TeamCheck = true,
-    LobbyCheck = false,
     AlwaysOn = false,
     WallCheck = true,
     ShowFOV = true,
@@ -82,7 +81,7 @@ local function GetClosestTarget()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
             
-            if Aimbot.Settings.LobbyCheck and (LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(p)) then continue end
+
             if IsTeammate(p) then continue end
             
             local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
@@ -115,7 +114,6 @@ function Aimbot:Toggle(state)
                 FOVCircle.Color = Aimbot.Settings.FOVColor
 
                 local isAiming = Aimbot.Settings.AlwaysOn or AimActive
-                if Aimbot.Settings.LobbyCheck and LobbyDetector.LocalPlayerInLobby then isAiming = false end
 
                 if isAiming then
                     local NewTarget = GetClosestTarget()

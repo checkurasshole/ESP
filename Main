@@ -52,9 +52,6 @@ local function applySettings(name)
 		if Options.ESPDistanceLimit then
 			mod.Settings.MaxDistance = Options.ESPDistanceLimit.Value
 		end
-		if Toggles.GlobalLobbyCheck then
-			mod.Settings.LobbyCheck = Toggles.GlobalLobbyCheck.Value
-		end
 		if name == "Hitbox" then
 			if Options.HitboxTarget then mod.Settings.TargetPart = Options.HitboxTarget.Value end
 			if Options.HitboxHeadSize then mod.Settings.HeadSize = Options.HitboxHeadSize.Value end
@@ -117,20 +114,7 @@ RightGroupBox:AddSlider("ESPDistanceLimit", {
 	end
 })
 
-RightGroupBox:AddToggle("GlobalLobbyCheck", {
-	Text = "Global Lobby Check",
-	Default = false,
-	Tooltip = "Disables ESP and Aimbot while in spawn/lobby.",
-	Callback = function(Value)
-		for _, name in ipairs(espScripts) do
-			if loadedModules[name] and loadedModules[name].Settings then
-				loadedModules[name].Settings.LobbyCheck = Value
-			end
-		end
-		local amod = loadedModules["Aimbot"]
-		if amod and amod.Settings then amod.Settings.LobbyCheck = Value end
-	end
-})
+
 
 -- Team check toggles (right side) - default ON
 for _, name in ipairs(espScripts) do

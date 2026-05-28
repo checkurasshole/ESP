@@ -7,14 +7,12 @@ ESP_Module.Settings = {
     Transparency = 0.5,
     TeamCheck = true,
     MaxDistance = 500,
-    LobbyCheck = false,
 }
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local originalStates = setmetatable({}, {__mode = "k"})
 local connection
@@ -46,11 +44,6 @@ local function ApplyHitbox(plr)
     local char = plr.Character
     if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then return end
     
-    local isLobby = false
-    if ESP_Module.Settings.LobbyCheck then
-        isLobby = LobbyDetector.IsPlayerInLobby(plr) or LobbyDetector.LocalPlayerInLobby
-    end
-    
     local isTeammate = false
     if ESP_Module.Settings.TeamCheck then
         if plr.TeamColor == Player.TeamColor then isTeammate = true end
@@ -62,7 +55,7 @@ local function ApplyHitbox(plr)
     local dist = 9e9
     if hrp then dist = (Camera.CFrame.Position - hrp.Position).Magnitude end
     
-    local isValid = not isLobby and not isTeammate and dist <= ESP_Module.Settings.MaxDistance
+    local isValid = not isTeammate and dist <= ESP_Module.Settings.MaxDistance
     
     if ESP_Module.Enabled and isValid then
         -- Process HRP

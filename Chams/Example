@@ -7,7 +7,6 @@ ESP_Module.Settings = {
     OutlineTransparency = 0,
     TeamCheck = true,
     MaxDistance = 500,
-    LobbyCheck = false,
 }
 
 local Players = game:GetService("Players")
@@ -15,7 +14,6 @@ local Player = Players.LocalPlayer
 local RS = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local cache = {}
 local connection
@@ -46,13 +44,8 @@ function ESP_Module:Toggle(state)
                     if plr ~= Player then
                         local char = plr.Character
                         if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
-                            local isLobby = false
-                            if ESP_Module.Settings.LobbyCheck then
-                                isLobby = LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(plr)
-                            end
-                            
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
-                            if not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+                            if dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[plr] then
                                     local h = CreateHighlight()
                                     h.Parent = holder

@@ -1,31 +1,24 @@
 local ESP_Module = {Enabled = false}
 
 ESP_Module.Settings = {
-    MaxDistance = 500,
-    LobbyCheck = false
+    MaxDistance = 500
 }
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local function ApplyESP(v)
     if v.Character and v.Character:FindFirstChildOfClass('Humanoid') then
         local HRP = v.Character:FindFirstChild("HumanoidRootPart")
-        local isLobby = false
         local dist = 0
-        
-        if ESP_Module.Settings.LobbyCheck then
-            isLobby = LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(v)
-        end
         
         if HRP then
             dist = (Camera.CFrame.Position - HRP.Position).Magnitude
         end
 
-        if ESP_Module.Enabled and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+        if ESP_Module.Enabled and dist <= ESP_Module.Settings.MaxDistance then
             v.Character.Humanoid.NameDisplayDistance = 9e9
             v.Character.Humanoid.NameOcclusion = "NoOcclusion"
             v.Character.Humanoid.HealthDisplayDistance = 9e9

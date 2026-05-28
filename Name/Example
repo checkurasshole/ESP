@@ -9,14 +9,12 @@ ESP_Module.Settings = {
     ShowHealth = true,
     ShowWeapon = true,
     MaxDistance = 500,
-    LobbyCheck = false,
 }
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local function HealthBarLerp(t)
     -- t=0 is dead (red), t=1 is full HP (green)
@@ -60,12 +58,7 @@ function ESP_Module:Toggle(state)
                             local rootPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
                             local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
                             
-                            local isLobby = false
-                            if ESP_Module.Settings.LobbyCheck then
-                                isLobby = LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(v)
-                            end
-                            
-                            if onScreen and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+                            if onScreen and dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[v] then
                                     cache[v] = {
                                         Name = NewText(),
