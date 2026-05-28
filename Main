@@ -15,7 +15,7 @@ local Window = Library:CreateWindow({
 	Icon = 95816097006870,
 	NotifySide = "Right",
 	ShowCustomCursor = false,
-	Size = UDim2.new(0, 360, 0, 480),
+	Size = UDim2.new(0, 420, 0, 450),
 })
 
 local Tabs = {
@@ -33,7 +33,7 @@ local RightGroupBox = Tabs.ESP:AddRightGroupbox("Team Check", "users")
 local loadedModules = {}
 
 local espScripts = {
-	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "XCT"
+	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health"
 }
 
 -- ESPs that support team check
@@ -45,10 +45,15 @@ local teamSupport = {
 local function applySettings(name)
 	local mod = loadedModules[name]
 	if not mod then return end
-	-- Apply current team check toggle state to freshly loaded module
-	if teamSupport[name] and Toggles[name .. "TeamCheck"] then
-		if mod.Settings then
+	if mod.Settings then
+		if teamSupport[name] and Toggles[name .. "TeamCheck"] then
 			mod.Settings.TeamCheck = Toggles[name .. "TeamCheck"].Value
+		end
+		if Options.ESPDistanceLimit then
+			mod.Settings.MaxDistance = Options.ESPDistanceLimit.Value
+		end
+		if Toggles.ESPLobbyCheck then
+			mod.Settings.LobbyCheck = Toggles.ESPLobbyCheck.Value
 		end
 	end
 end
@@ -90,6 +95,33 @@ for _, name in ipairs(espScripts) do
 		end,
 	})
 end
+
+RightGroupBox:AddSlider("ESPDistanceLimit", {
+	Text = "Max Distance",
+	Default = 10000,
+	Min = 10,
+	Max = 10000,
+	Rounding = 0,
+	Callback = function(Value)
+		for _, name in ipairs(espScripts) do
+			if loadedModules[name] and loadedModules[name].Settings then
+				loadedModules[name].Settings.MaxDistance = Value
+			end
+		end
+	end
+})
+
+RightGroupBox:AddToggle("ESPLobbyCheck", {
+	Text = "Lobby Check (Ignore if in spawn/lobby)",
+	Default = false,
+	Callback = function(Value)
+		for _, name in ipairs(espScripts) do
+			if loadedModules[name] and loadedModules[name].Settings then
+				loadedModules[name].Settings.LobbyCheck = Value
+			end
+		end
+	end
+})
 
 -- Team check toggles (right side) - default ON
 for _, name in ipairs(espScripts) do
@@ -144,6 +176,12 @@ AimSettingsBox:AddToggle("AimbotToggle", {
     end
 })
 
+AimSettingsBox:AddToggle("AimbotAlwaysOn", {
+    Text = "Always On (Auto-Lock)",
+    Default = false,
+    Callback = function(Value) updateAimbotSetting("AlwaysOn", Value) end
+})
+
 AimSettingsBox:AddDropdown("AimbotMethod", {
     Values = { "Mouse", "Camera" },
     Default = "Mouse",
@@ -191,7 +229,7 @@ AimFOVBox:AddToggle("AimbotShowFOV", {
 
 AimFOVBox:AddSlider("AimbotFOVRadius", {
     Text = "FOV Radius",
-    Default = 100,
+    Default = 150,
     Min = 10,
     Max = 800,
     Rounding = 0,
@@ -208,6 +246,12 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Text = "Wall Check",
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
+})
+
+AimFOVBox:AddToggle("AimbotLobbyCheck", {
+    Text = "Lobby Check (Ignore if in spawn/lobby)",
+    Default = false,
+    Callback = function(Value) updateAimbotSetting("LobbyCheck", Value) end
 })
 
 --------------------------------------------------------------------------------

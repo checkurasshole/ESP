@@ -7,12 +7,21 @@ ESP_Module.Settings = {
     Length = 10,
     TeamCheck = true,
     TeamColor = false,
+    MaxDistance = 10000,
+    LobbyCheck = false,
 }
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
+end
 
 local function NewLine()
     local line = Drawing.new("Line")
@@ -38,8 +47,14 @@ function ESP_Module:Toggle(state)
                             
                             local headPos, onScreen1 = Camera:WorldToViewportPoint(head.Position)
                             local endPos, onScreen2 = Camera:WorldToViewportPoint(targetPos)
+                            local dist = (Camera.CFrame.Position - head.Position).Magnitude
                             
-                            if onScreen1 or onScreen2 then
+                            local isLobby = false
+                            if ESP_Module.Settings.LobbyCheck then
+                                isLobby = IsInLobby(v) or IsInLobby(Player)
+                            end
+                            
+                            if (onScreen1 or onScreen2) and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[v] then
                                     cache[v] = NewLine()
                                 end

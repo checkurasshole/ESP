@@ -4,6 +4,8 @@ local ESP_Module = {Enabled = false}
 
 ESP_Module.Settings = {
     TeamCheck = true,
+    MaxDistance = 10000,
+    LobbyCheck = false,
 }
 
 local DistFromCenter = 80
@@ -35,6 +37,13 @@ local function GetRelative(pos, char)
     local camP = Camera.CFrame.Position
     local relative = CF(V3(rootP.X, camP.Y, rootP.Z), camP):PointToObjectSpace(pos)
     return V2(relative.X, relative.Z)
+end
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
 end
 
 local function RelativeToCenter(v)
@@ -75,8 +84,14 @@ function ESP_Module:Toggle(state)
                     if p ~= Player then
                         local char = p.Character
                         if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+                            local isLobby = false
+                            if ESP_Module.Settings.LobbyCheck then
+                                isLobby = IsInLobby(p) or IsInLobby(Player)
+                            end
+                            
+                            local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
                             local _, vis = Camera:WorldToViewportPoint(char.PrimaryPart.Position)
-                            if not vis then
+                            if not vis and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
                                 if not cache[p] then
                                     local clr = TriangleColor
                                     if ESP_Module.Settings.TeamCheck then

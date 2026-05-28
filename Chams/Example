@@ -6,12 +6,22 @@ ESP_Module.Settings = {
     OutlineColor = Color3.fromRGB(255, 255, 255),
     OutlineTransparency = 0,
     TeamCheck = true,
+    MaxDistance = 10000,
+    LobbyCheck = false,
 }
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RS = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local Camera = workspace.CurrentCamera
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
+end
 
 local cache = {}
 local connection
@@ -41,14 +51,21 @@ function ESP_Module:Toggle(state)
                 for _, plr in ipairs(Players:GetPlayers()) do
                     if plr ~= Player then
                         local char = plr.Character
-                        if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
-                            if not cache[plr] then
-                                local h = CreateHighlight()
-                                h.Parent = holder
-                                cache[plr] = h
+                        if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
+                            local isLobby = false
+                            if ESP_Module.Settings.LobbyCheck then
+                                isLobby = IsInLobby(plr) or IsInLobby(Player)
                             end
-                            local h = cache[plr]
-                            h.Adornee = char
+                            
+                            local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
+                            if not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+                                if not cache[plr] then
+                                    local h = CreateHighlight()
+                                    h.Parent = holder
+                                    cache[plr] = h
+                                end
+                                local h = cache[plr]
+                                h.Adornee = char
 
                             local clr = ESP_Module.Settings.FillColor
                             if ESP_Module.Settings.TeamCheck then
@@ -60,7 +77,10 @@ function ESP_Module:Toggle(state)
                             h.FillTransparency = ESP_Module.Settings.FillTransparency
                             h.OutlineColor = ESP_Module.Settings.OutlineColor
                             h.OutlineTransparency = ESP_Module.Settings.OutlineTransparency
-                            h.Enabled = true
+                                h.Enabled = true
+                            else
+                                if cache[plr] then cache[plr].Enabled = false end
+                            end
                         else
                             if cache[plr] then cache[plr].Enabled = false end
                         end

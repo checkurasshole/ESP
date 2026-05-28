@@ -1,0 +1,82 @@
+local ESP_Module = {Enabled = false}
+
+ESP_Module.Settings = {
+    MaxDistance = 10000,
+    LobbyCheck = false
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
+end
+
+local function ApplyESP(v)
+    if v.Character and v.Character:FindFirstChildOfClass('Humanoid') then
+        local HRP = v.Character:FindFirstChild("HumanoidRootPart")
+        local isLobby = false
+        local dist = 0
+        
+        if ESP_Module.Settings.LobbyCheck then
+            isLobby = IsInLobby(v) or IsInLobby(Player)
+        end
+        
+        if HRP then
+            dist = (Camera.CFrame.Position - HRP.Position).Magnitude
+        end
+
+        if ESP_Module.Enabled and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
+            v.Character.Humanoid.NameDisplayDistance = 9e9
+            v.Character.Humanoid.NameOcclusion = "NoOcclusion"
+            v.Character.Humanoid.HealthDisplayDistance = 9e9
+            v.Character.Humanoid.HealthDisplayType = "AlwaysOn"
+        else
+            v.Character.Humanoid.NameDisplayDistance = 100
+            v.Character.Humanoid.NameOcclusion = "OccludeAll"
+            v.Character.Humanoid.HealthDisplayDistance = 100
+            v.Character.Humanoid.HealthDisplayType = "DisplayWhenDamaged"
+        end
+        v.Character.Humanoid.Health = v.Character.Humanoid.Health
+    end
+end
+
+function ESP_Module:Toggle(state)
+    self.Enabled = state
+    for i,v in pairs(Players:GetPlayers()) do
+        if v ~= Player then ApplyESP(v) end
+    end
+end
+
+for i,v in pairs(Players:GetPlayers()) do
+    if v ~= Player then
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+    end
+end
+
+Players.PlayerAdded:Connect(function(v)
+    if v ~= Player then
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+    end
+end)
+
+-- Continuously refresh in case they move out of range
+game:GetService("RunService").Heartbeat:Connect(function()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player then ApplyESP(v) end
+    end
+end)
+
+return ESP_Module

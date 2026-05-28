@@ -1,33 +1,134 @@
 local ESP_Module = {Enabled = false}
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Blissful4992/ESPs/main/UniversalSkeleton.lua"))()
 
-local Skeletons = {}
+ESP_Module.Settings = {
+    Color = Color3.fromRGB(255, 255, 255),
+    Thickness = 1.5,
+    Transparency = 1,
+    TeamCheck = true,
+    TeamColor = false,
+    MaxDistance = 10000,
+    LobbyCheck = false,
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RS = game:GetService("RunService")
+
+local cache = {}
+local connection
+
+local function NewLine()
+    local line = Drawing.new("Line")
+    line.Visible = false
+    return line
+end
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
+end
 
 function ESP_Module:Toggle(state)
     self.Enabled = state
     if state then
-        for _, Player in next, game.Players:GetChildren() do
-            if Player ~= game.Players.LocalPlayer then
-                table.insert(Skeletons, Library:NewSkeleton(Player, true))
-            end
+        if not connection then
+            connection = RS.RenderStepped:Connect(function()
+                for _, v in ipairs(Players:GetPlayers()) do
+                    if v ~= Player then
+                        local char = v.Character
+                        if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
+                            local rootPart = char.PrimaryPart
+                            local dist = (Camera.CFrame.Position - rootPart.Position).Magnitude
+                            
+                            local isLobby = false
+                            if ESP_Module.Settings.LobbyCheck then
+                                isLobby = IsInLobby(v) or IsInLobby(Player)
+                            end
+                            
+                            if not cache[v] then
+                                cache[v] = { NewLine(), NewLine(), NewLine(), NewLine(), NewLine() }
+                            end
+                            local lines = cache[v]
+                            
+                            local clr = ESP_Module.Settings.Color
+                            if ESP_Module.Settings.TeamCheck and v.TeamColor ~= Player.TeamColor then
+                                clr = Color3.fromRGB(255, 0, 0)
+                            elseif ESP_Module.Settings.TeamCheck and v.TeamColor == Player.TeamColor then
+                                clr = Color3.fromRGB(0, 255, 0)
+                            end
+                            if ESP_Module.Settings.TeamColor and v.TeamColor then
+                                clr = v.TeamColor.Color
+                            end
+                            
+                            local function GB(n)
+                                local part = char:FindFirstChild(n)
+                                if part then
+                                    local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                                    return onScreen, Vector2.new(pos.X, pos.Y)
+                                end
+                                return false, nil
+                            end
+                            
+                            local H_on, H = GB("Head")
+                            local T_on, T = GB("UpperTorso")
+                            local LL_on, LL = GB("LeftLowerLeg")
+                            local RL_on, RL = GB("RightLowerLeg")
+                            local LA_on, LA = GB("LeftLowerArm")
+                            local RA_on, RA = GB("RightLowerArm")
+                            
+                            -- Fallback for R6
+                            if not T then T_on, T = GB("Torso") end
+                            if not LL then LL_on, LL = GB("Left Leg") end
+                            if not RL then RL_on, RL = GB("Right Leg") end
+                            if not LA then LA_on, LA = GB("Left Arm") end
+                            if not RA then RA_on, RA = GB("Right Arm") end
+                            
+                            local onScreen = H_on or T_on or LL_on or RL_on or LA_on or RA_on
+                            
+                            if onScreen and not isLobby and dist <= ESP_Module.Settings.MaxDistance and H and T and LL and RL and LA and RA then
+                                for i=1, 5 do
+                                    lines[i].Visible = true
+                                    lines[i].Color = clr
+                                    lines[i].Thickness = ESP_Module.Settings.Thickness
+                                    lines[i].Transparency = ESP_Module.Settings.Transparency
+                                end
+                                lines[1].From = H; lines[1].To = T
+                                lines[2].From = T; lines[2].To = LL
+                                lines[3].From = T; lines[3].To = RL
+                                lines[4].From = T; lines[4].To = LA
+                                lines[5].From = T; lines[5].To = RA
+                            else
+                                for i=1, 5 do lines[i].Visible = false end
+                            end
+                        else
+                            if cache[v] then
+                                for i=1, 5 do cache[v][i].Visible = false end
+                            end
+                        end
+                    end
+                end
+                
+                for p, lines in pairs(cache) do
+                    if not p or not p.Parent then
+                        for i=1, 5 do lines[i]:Remove() end
+                        cache[p] = nil
+                    end
+                end
+            end)
         end
     else
-        for _, skeleton in ipairs(Skeletons) do
-            if skeleton and type(skeleton.Remove) == "function" then
-                skeleton:Remove()
-            end
-            if skeleton and type(skeleton.Destroy) == "function" then
-                skeleton:Destroy()
-            end
+        if connection then
+            connection:Disconnect()
+            connection = nil
         end
-        Skeletons = {}
+        for p, lines in pairs(cache) do
+            for i=1, 5 do lines[i]:Remove() end
+        end
+        table.clear(cache)
     end
 end
-
-game.Players.PlayerAdded:Connect(function(Player)
-    if ESP_Module.Enabled and Player ~= game.Players.LocalPlayer then
-        table.insert(Skeletons, Library:NewSkeleton(Player, true))
-    end
-end)
 
 return ESP_Module

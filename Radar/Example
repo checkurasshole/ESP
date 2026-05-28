@@ -35,9 +35,18 @@ ESP_Module.Settings = {
     Team = Color3.fromRGB(0, 255, 0),
     Enemy = Color3.fromRGB(255, 0, 0),
     Health_Color = false,
-    TeamCheck = true -- Changed from Team_Check to TeamCheck to match Main script
+    TeamCheck = true,
+    MaxDistance = 10000,
+    LobbyCheck = false,
 }
 local RadarInfo = ESP_Module.Settings
+
+local function IsInLobby(p)
+    if not p or not p.Character then return false end
+    if p.Character:FindFirstChildOfClass("ForceField") then return true end
+    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
+    return false
+end
 
 local function GetRelative(pos)
     local char = Player.Character
@@ -116,9 +125,16 @@ function ESP_Module:Toggle(state)
                     if plr ~= Player then
                         local char = plr.Character
                         if char and char:FindFirstChildOfClass("Humanoid") and char.PrimaryPart and char:FindFirstChildOfClass("Humanoid").Health > 0 then
-                            if not cache[plr] then
-                                cache[plr] = NewCircle(1, RadarInfo.PlayerDot, 3, true, 1)
+                            local isLobby = false
+                            if RadarInfo.LobbyCheck then
+                                isLobby = IsInLobby(plr) or IsInLobby(Player)
                             end
+                            local dist = (char.PrimaryPart.Position - Player.Character.PrimaryPart.Position).Magnitude
+                            
+                            if not isLobby and dist <= RadarInfo.MaxDistance then
+                                if not cache[plr] then
+                                    cache[plr] = NewCircle(1, RadarInfo.PlayerDot, 3, true, 1)
+                                end
                             local dot = cache[plr]
                             local hum = char:FindFirstChildOfClass("Humanoid")
                             local scale = RadarInfo.Scale
@@ -149,6 +165,9 @@ function ESP_Module:Toggle(state)
                         else
                             if cache[plr] then cache[plr].Visible = false end
                         end
+                    else
+                        if cache[plr] then cache[plr].Visible = false end
+                    end
                     end
                 end
                 
