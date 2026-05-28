@@ -13,11 +13,12 @@ Aimbot.Settings = {
     AimKey = "MouseButton2" -- "Right Click"
 }
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local RS = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local cloneref = cloneref or function(...) return ... end
+local Players = cloneref(game:GetService("Players"))
+local LocalPlayer = cloneref(Players.LocalPlayer)
+local Camera = cloneref(workspace.CurrentCamera)
+local RS = cloneref(game:GetService("RunService"))
+local UserInputService = cloneref(game:GetService("UserInputService"))
 
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Visible = false

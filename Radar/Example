@@ -1,11 +1,12 @@
 local ESP_Module = {Enabled = false}
 
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
+local cloneref = cloneref or function(...) return ... end
+local Players = cloneref(game:GetService("Players"))
+local Player = cloneref(Players.LocalPlayer)
 local Mouse = Player:GetMouse()
-local Camera = workspace.CurrentCamera
-local RS = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local Camera = cloneref(workspace.CurrentCamera)
+local RS = cloneref(game:GetService("RunService"))
+local UIS = cloneref(game:GetService("UserInputService"))
 
 local function HealthBarLerp(t)
     return Color3.fromRGB(math.floor(255 * (1 - t)), math.floor(255 * t), 0)

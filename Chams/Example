@@ -9,11 +9,12 @@ ESP_Module.Settings = {
     MaxDistance = 500,
 }
 
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local RS = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local Camera = workspace.CurrentCamera
+local cloneref = cloneref or function(...) return ... end
+local Players = cloneref(game:GetService("Players"))
+local Player = cloneref(Players.LocalPlayer)
+local RS = cloneref(game:GetService("RunService"))
+local CoreGui = cloneref(game:GetService("CoreGui"))
+local Camera = cloneref(workspace.CurrentCamera)
 
 local cache = {}
 local connection

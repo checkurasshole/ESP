@@ -11,10 +11,11 @@ ESP_Module.Settings = {
     MaxDistance = 500,
 }
 
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local RS = game:GetService("RunService")
+local cloneref = cloneref or function(...) return ... end
+local Players = cloneref(game:GetService("Players"))
+local Player = cloneref(Players.LocalPlayer)
+local Camera = cloneref(workspace.CurrentCamera)
+local RS = cloneref(game:GetService("RunService"))
 
 local function HealthBarLerp(t)
     -- t=0 is dead (red), t=1 is full HP (green)
