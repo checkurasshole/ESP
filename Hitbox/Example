@@ -1,0 +1,135 @@
+local Hitbox = {Enabled = false}
+
+Hitbox.Settings = {
+    Size = 8,
+    TeamCheck = false,
+    LobbyCheck = false,
+}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
+
+local originals = {}
+local connection
+local seatConnections = {}
+
+local PARTS_TO_EXPAND = {"HumanoidRootPart", "Head"}
+
+local function applyToPlayer(p)
+    if p == LocalPlayer then return end
+    local char = p.Character
+    if not char then return end
+
+    local hum = char:FindFirstChild("Humanoid")
+    if not hum then return end
+
+    local isLobby = Hitbox.Settings.LobbyCheck and (LobbyDetector.IsPlayerInLobby(p) or LobbyDetector.LocalPlayerInLobby)
+    local isTeammate = Hitbox.Settings.TeamCheck and p.Team == LocalPlayer.Team and p.Team ~= nil
+
+    if isLobby or isTeammate then
+        return
+    end
+
+    if not originals[p] then
+        originals[p] = {}
+    end
+
+    for _, partName in ipairs(PARTS_TO_EXPAND) do
+        local part = char:FindFirstChild(partName)
+        if part then
+            if not originals[p][partName] then
+                originals[p][partName] = part.Size
+            end
+
+            local sitting = hum.Sit
+            if sitting then
+                part.Size = originals[p][partName]
+            else
+                local originalSize = originals[p][partName]
+                local targetSize = Vector3.new(
+                    math.max(originalSize.X, Hitbox.Settings.Size),
+                    math.max(originalSize.Y, Hitbox.Settings.Size),
+                    math.max(originalSize.Z, Hitbox.Settings.Size)
+                )
+                part.Size = targetSize
+                part.CanCollide = false
+                part.Massless = true
+                part.CastShadow = false
+            end
+        end
+    end
+end
+
+local function restorePlayer(p)
+    if not originals[p] then return end
+    local char = p.Character
+    if char then
+        for partName, originalSize in pairs(originals[p]) do
+            local part = char:FindFirstChild(partName)
+            if part then
+                part.Size = originalSize
+            end
+        end
+    end
+    originals[p] = nil
+end
+
+local function setupCharacterHooks(p)
+    if seatConnections[p] then
+        seatConnections[p]:Disconnect()
+        seatConnections[p] = nil
+    end
+    seatConnections[p] = p.CharacterAdded:Connect(function()
+        originals[p] = nil
+        task.wait(0.5)
+        if Hitbox.Enabled then
+            applyToPlayer(p)
+        end
+    end)
+end
+
+function Hitbox:Toggle(state)
+    self.Enabled = state
+    if state then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                applyToPlayer(p)
+                setupCharacterHooks(p)
+            end
+        end
+
+        Players.PlayerAdded:Connect(function(p)
+            if not Hitbox.Enabled then return end
+            task.wait(0.5)
+            applyToPlayer(p)
+            setupCharacterHooks(p)
+        end)
+
+        if not connection then
+            connection = RunService.Heartbeat:Connect(function()
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer then
+                        applyToPlayer(p)
+                    end
+                end
+            end)
+        end
+    else
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            restorePlayer(p)
+        end
+        for p, conn in pairs(seatConnections) do
+            conn:Disconnect()
+        end
+        table.clear(seatConnections)
+        table.clear(originals)
+    end
+end
+
+return Hitbox
