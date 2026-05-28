@@ -15,8 +15,7 @@ local Player = Players.LocalPlayer
 local RS = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = workspace.CurrentCamera
-local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
 local cache = {}
 local connection
@@ -43,14 +42,14 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, target in ipairs(TargetManager.GetTargets("ESP")) do
-                    local plr = target.Player or target.Character
-                    local char = target.Character
-                    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
-                        local isLobby = false
-                        if ESP_Module.Settings.LobbyCheck then
-                            isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
-                        end
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= Player then
+                        local char = plr.Character
+                        if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
+                            local isLobby = false
+                            if ESP_Module.Settings.LobbyCheck then
+                                isLobby = LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(plr)
+                            end
                             
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
                             if not isLobby and dist <= ESP_Module.Settings.MaxDistance then
@@ -63,8 +62,8 @@ function ESP_Module:Toggle(state)
                                 h.Adornee = char
 
                             local clr = ESP_Module.Settings.FillColor
-                            if ESP_Module.Settings.TeamCheck and target.TeamColor ~= nil then
-                                clr = (target.TeamColor == Player.TeamColor)
+                            if ESP_Module.Settings.TeamCheck then
+                                clr = (plr.TeamColor == Player.TeamColor)
                                     and Color3.fromRGB(0, 255, 0)
                                     or  Color3.fromRGB(255, 0, 0)
                             end
@@ -106,4 +105,3 @@ function ESP_Module:Toggle(state)
 end
 
 return ESP_Module
-

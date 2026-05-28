@@ -9,53 +9,69 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local RS = game:GetService("RunService")
-local LobbyDetector = getgenv().ESP_LobbyDetector or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
-local TargetManager = getgenv().ESP_TargetManager or loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/TargetManager.lua"))()
+local LobbyDetector = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/LobbyDetector.lua"))()
 
-local function ApplyESP(target)
-    local char = target.Character
-    if char and char:FindFirstChildOfClass('Humanoid') then
-        local HRP = char:FindFirstChild("HumanoidRootPart")
+local function ApplyESP(v)
+    if v.Character and v.Character:FindFirstChildOfClass('Humanoid') then
+        local HRP = v.Character:FindFirstChild("HumanoidRootPart")
         local isLobby = false
         local dist = 0
         
         if ESP_Module.Settings.LobbyCheck then
-            isLobby = LobbyDetector.LocalPlayerInLobby or (target.Type == "Player" and LobbyDetector.IsPlayerInLobby(target.Player))
+            isLobby = LobbyDetector.LocalPlayerInLobby or LobbyDetector.IsPlayerInLobby(v)
         end
         
         if HRP then
             dist = (Camera.CFrame.Position - HRP.Position).Magnitude
         end
 
-        local hum = char:FindFirstChildOfClass('Humanoid')
         if ESP_Module.Enabled and not isLobby and dist <= ESP_Module.Settings.MaxDistance then
-            hum.NameDisplayDistance = 9e9
-            hum.NameOcclusion = "NoOcclusion"
-            hum.HealthDisplayDistance = 9e9
-            hum.HealthDisplayType = "AlwaysOn"
+            v.Character.Humanoid.NameDisplayDistance = 9e9
+            v.Character.Humanoid.NameOcclusion = "NoOcclusion"
+            v.Character.Humanoid.HealthDisplayDistance = 9e9
+            v.Character.Humanoid.HealthDisplayType = "AlwaysOn"
         else
-            hum.NameDisplayDistance = 100
-            hum.NameOcclusion = "OccludeAll"
-            hum.HealthDisplayDistance = 100
-            hum.HealthDisplayType = "DisplayWhenDamaged"
+            v.Character.Humanoid.NameDisplayDistance = 100
+            v.Character.Humanoid.NameOcclusion = "OccludeAll"
+            v.Character.Humanoid.HealthDisplayDistance = 100
+            v.Character.Humanoid.HealthDisplayType = "DisplayWhenDamaged"
         end
-        hum.Health = hum.Health
+        v.Character.Humanoid.Health = v.Character.Humanoid.Health
     end
 end
 
 function ESP_Module:Toggle(state)
     self.Enabled = state
-    for _, target in ipairs(TargetManager.GetTargets("ESP")) do
-        ApplyESP(target)
+    for i,v in pairs(Players:GetPlayers()) do
+        if v ~= Player then ApplyESP(v) end
     end
 end
 
+for i,v in pairs(Players:GetPlayers()) do
+    if v ~= Player then
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+    end
+end
+
+Players.PlayerAdded:Connect(function(v)
+    if v ~= Player then
+        ApplyESP(v)
+        v.CharacterAdded:Connect(function()
+            task.wait(0.33)
+            ApplyESP(v)
+        end)
+    end
+end)
+
 -- Continuously refresh in case they move out of range
 game:GetService("RunService").Heartbeat:Connect(function()
-    for _, target in ipairs(TargetManager.GetTargets("ESP")) do
-        ApplyESP(target)
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= Player then ApplyESP(v) end
     end
 end)
 
 return ESP_Module
-

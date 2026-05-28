@@ -226,11 +226,18 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
+local teamNameCache = {}
+
 function Detector.IsPlayerInLobby(p)
     if not p or not p.Character then return false end
     if p.Character:FindFirstChildOfClass("ForceField") then return true end
-    if p.Team and (p.Team.Name:lower():find("lobby") or p.Team.Name:lower():find("spectator") or p.Team.Name:lower():find("waiting")) then return true end
-    return false
+    if not p.Team then return false end
+    local teamName = p.Team.Name
+    if teamNameCache[teamName] == nil then
+        local lowerName = teamName:lower()
+        teamNameCache[teamName] = (lowerName:find("lobby") or lowerName:find("spectator") or lowerName:find("waiting")) ~= nil
+    end
+    return teamNameCache[teamName]
 end
 
 return Detector
