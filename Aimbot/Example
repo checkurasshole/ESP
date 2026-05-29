@@ -123,7 +123,16 @@ function Aimbot:Toggle(state)
 
                 if StickyTarget then
                     local Hum = StickyTarget.Character and StickyTarget.Character:FindFirstChild("Humanoid")
-                    if not StickyTarget.Character or not Hum or Hum.Health <= 0 then StickyTarget = nil end
+                    if not StickyTarget.Character or not Hum or Hum.Health <= 0 then
+                        StickyTarget = nil
+                    elseif Aimbot.Settings.WallCheck and StickyTarget.Character:FindFirstChild("HumanoidRootPart") then
+                        -- Continuously re-check walls on the locked target every frame
+                        local Parts = Camera:GetPartsObscuringTarget(
+                            {StickyTarget.Character.HumanoidRootPart.Position},
+                            {LocalPlayer.Character, StickyTarget.Character}
+                        )
+                        if #Parts > 0 then StickyTarget = nil end
+                    end
                 end
                 if not isAiming then StickyTarget = nil end
 
