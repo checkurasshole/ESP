@@ -15,6 +15,7 @@ local Players = cloneref(game:GetService("Players"))
 local Player = cloneref(Players.LocalPlayer)
 local Camera = cloneref(workspace.CurrentCamera)
 local RS = cloneref(game:GetService("RunService"))
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 local function NewLine()
     local line = Drawing.new("Line")
@@ -50,10 +51,12 @@ function ESP_Module:Toggle(state)
                                 local line = cache[v]
                                 
                                 local clr = ESP_Module.Settings.Color
-                                if ESP_Module.Settings.TeamCheck and v.TeamColor ~= Player.TeamColor then
-                                    clr = Color3.fromRGB(255, 0, 0)
-                                elseif ESP_Module.Settings.TeamCheck and v.TeamColor == Player.TeamColor then
-                                    clr = Color3.fromRGB(0, 255, 0)
+                                if ESP_Module.Settings.TeamCheck then
+                                    if IsTeammate(v) then
+                                        clr = Color3.fromRGB(0, 255, 0)
+                                    else
+                                        clr = Color3.fromRGB(255, 0, 0)
+                                    end
                                 end
                                 if ESP_Module.Settings.TeamColor and v.TeamColor then
                                     clr = v.TeamColor.Color

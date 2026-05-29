@@ -42,39 +42,7 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- Advanced Team Check
-local function IsTeammate(Player)
-    if not Aimbot.Settings.TeamCheck then return false end
-    
-    if Player.Team == LocalPlayer.Team and Player.Team ~= nil then
-        return true
-    end
-    
-    if Player:GetAttribute("Team") == LocalPlayer:GetAttribute("Team") and Player:GetAttribute("Team") ~= nil then
-        return true
-    end
-
-    local Char = Player.Character
-    if Char then
-        local HRP = Char:FindFirstChild("HumanoidRootPart")
-        if HRP and (HRP:FindFirstChild("teamatelabel") or HRP:FindFirstChild("TeammateLabel") or HRP:FindFirstChild("Marker")) then
-            return true
-        end
-        
-        local Head = Char:FindFirstChild("Head")
-        if Head and (Head:FindFirstChild("TeammateLabel") or Head:FindFirstChild("FriendMarker")) then
-            return true
-        end
-
-        for _, child in pairs(Char:GetDescendants()) do
-            if child:IsA("BillboardGui") and (child.Name:lower():find("team") or child.Name:lower():find("friend")) then
-                return true
-            end
-        end
-    end
-    
-    return false
-end
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 -- Exact Targeting Loop
 local function GetClosestTarget()
@@ -83,7 +51,7 @@ local function GetClosestTarget()
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
             
 
-            if IsTeammate(p) then continue end
+            if Aimbot.Settings.TeamCheck and IsTeammate(p) then continue end
             
             local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
             if OnScreen then

@@ -15,6 +15,7 @@ local Player = cloneref(Players.LocalPlayer)
 local RS = cloneref(game:GetService("RunService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local Camera = cloneref(workspace.CurrentCamera)
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 local cache = {}
 local connection
@@ -59,7 +60,7 @@ function ESP_Module:Toggle(state)
 
                             local clr = ESP_Module.Settings.FillColor
                             if ESP_Module.Settings.TeamCheck then
-                                clr = (plr.TeamColor == Player.TeamColor)
+                                clr = IsTeammate(plr)
                                     and Color3.fromRGB(0, 255, 0)
                                     or  Color3.fromRGB(255, 0, 0)
                             end

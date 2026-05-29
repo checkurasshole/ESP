@@ -21,6 +21,7 @@ local Players = cloneref(game:GetService("Players"))
 local Player = cloneref(Players.LocalPlayer)
 local Camera = cloneref(workspace.CurrentCamera)
 local RS = cloneref(game:GetService("RunService"))
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 local V3 = Vector3.new
 local V2 = Vector2.new
@@ -83,7 +84,7 @@ function ESP_Module:Toggle(state)
                                 if not cache[p] then
                                     local clr = TriangleColor
                                     if ESP_Module.Settings.TeamCheck then
-                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                        clr = IsTeammate(p) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                                     end
                                     cache[p] = DrawTriangle(clr)
                                 end
@@ -100,7 +101,7 @@ function ESP_Module:Toggle(state)
 
                                     local clr = TriangleColor
                                     if ESP_Module.Settings.TeamCheck then
-                                        clr = (p.TeamColor == Player.TeamColor) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+                                        clr = IsTeammate(p) and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
                                     end
                                     arrow.Color = clr
 

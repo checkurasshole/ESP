@@ -7,6 +7,7 @@ local Mouse = Player:GetMouse()
 local Camera = cloneref(workspace.CurrentCamera)
 local RS = cloneref(game:GetService("RunService"))
 local UIS = cloneref(game:GetService("UserInputService"))
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 local function HealthBarLerp(t)
     return Color3.fromRGB(math.floor(255 * (1 - t)), math.floor(255 * t), 0)
@@ -143,9 +144,7 @@ function ESP_Module:Toggle(state)
                             -- Default: enemy red
                             dot.Color = RadarInfo.Enemy
                             if RadarInfo.TeamCheck then
-                                -- Use .Team (actual team object) not .TeamColor to avoid false matches in teamless games
-                                local sameTeam = plr.Team ~= nil and Player.Team ~= nil and plr.Team == Player.Team
-                                dot.Color = sameTeam and RadarInfo.Team or RadarInfo.Enemy
+                                dot.Color = IsTeammate(plr) and RadarInfo.Team or RadarInfo.Enemy
                             end
                             if RadarInfo.Health_Color then
                                 dot.Color = HealthBarLerp(hum.Health / hum.MaxHealth)

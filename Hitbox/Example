@@ -14,6 +14,7 @@ local Players = cloneref(game:GetService("Players"))
 local Player = cloneref(Players.LocalPlayer)
 local Camera = cloneref(workspace.CurrentCamera)
 local RS = cloneref(game:GetService("RunService"))
+local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 
 local originalStates = setmetatable({}, {__mode = "k"})
 local connection
@@ -47,7 +48,7 @@ local function ApplyHitbox(plr)
     
     local isTeammate = false
     if ESP_Module.Settings.TeamCheck then
-        if plr.TeamColor == Player.TeamColor then isTeammate = true end
+        if IsTeammate(plr) then isTeammate = true end
     end
     
     local hrp = char:FindFirstChild("HumanoidRootPart")
