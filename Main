@@ -410,46 +410,110 @@ GameACBox:AddToggle("RivalsACToggle", {
 --------------------------------------------------------------------------------
 -- EXECUTOR TEST TAB
 --------------------------------------------------------------------------------
-local ExecBox = Tabs.Executor:AddLeftGroupbox("Capabilities", "terminal")
+--------------------------------------------------------------------------------
+-- EXECUTOR TEST TAB (auto-runs on load)
+--------------------------------------------------------------------------------
+local ExecBox = Tabs.Executor:AddLeftGroupbox("Executor Info", "terminal")
+local ExecResultsBox = Tabs.Executor:AddRightGroupbox("Capability Results", "check-circle")
 
-local execStatusLabel = ExecBox:AddLabel("Status: Waiting to test...")
+local execNameLabel = ExecBox:AddLabel("Executor: Scanning...")
+local execScoreLabel = ExecBox:AddLabel("Score: ...")
+local execStatusLabel = ExecBox:AddLabel("")
 
-ExecBox:AddButton("Run UNC Test", function()
-    local funcs = {
-        "getgenv", "getrenv", "getrawmetatable", "hookmetamethod", "hookfunction",
-        "readfile", "writefile", "listfiles", "isfolder", "makefolder",
-        "request", "http_request", "setclipboard", "getnamecallmethod", "setnamecallmethod",
-        "identifyexecutor", "getthreadidentity", "setthreadidentity", "gethui",
-        "cloneref", "getconnections", "firesignal", "require", "getgc", "islclosure"
-    }
+local EXEC_FUNCS = {
+    { name = "getgenv",            label = "Global Environment" },
+    { name = "getrenv",            label = "Roblox Environment" },
+    { name = "getrawmetatable",    label = "Raw Metatable Access" },
+    { name = "hookmetamethod",     label = "Hook Metamethod" },
+    { name = "hookfunction",       label = "Hook Function" },
+    { name = "readfile",           label = "Read File" },
+    { name = "writefile",          label = "Write File" },
+    { name = "listfiles",          label = "List Files" },
+    { name = "isfolder",           label = "Is Folder" },
+    { name = "makefolder",         label = "Make Folder" },
+    { name = "setclipboard",       label = "Clipboard Access" },
+    { name = "getnamecallmethod",  label = "Namecall Method" },
+    { name = "identifyexecutor",   label = "Identify Executor" },
+    { name = "getthreadidentity",  label = "Thread Identity" },
+    { name = "setthreadidentity",  label = "Set Thread Identity" },
+    { name = "gethui",             label = "Hidden UI (gethui)" },
+    { name = "cloneref",           label = "Clone Reference" },
+    { name = "getconnections",     label = "Get Connections" },
+    { name = "getgc",              label = "Garbage Collector" },
+    { name = "islclosure",         label = "Is Lua Closure" },
+    { name = "request",            label = "HTTP Request" },
+    { name = "getfenv",            label = "Get Function Env" },
+    { name = "setfenv",            label = "Set Function Env" },
+    { name = "getupvalues",        label = "Get Upvalues" },
+    { name = "debug",              label = "Debug Library" },
+}
+
+local resultLabels = {}
+for _, entry in ipairs(EXEC_FUNCS) do
+    resultLabels[entry.name] = ExecResultsBox:AddLabel("[ ] " .. entry.label)
+end
+
+local function RunExecutorTest()
     local passed = 0
-    for _, f in ipairs(funcs) do
-        local ok, res = pcall(function() return getgenv()[f] or getfenv()[f] or shared[f] end)
-        if ok and type(res) == "function" then
+    local total = #EXEC_FUNCS
+
+    for _, entry in ipairs(EXEC_FUNCS) do
+        local ok, res = pcall(function()
+            local g = (type(getgenv) == "function" and getgenv()) or shared
+            return g[entry.name]
+        end)
+        local found = ok and res ~= nil
+        if entry.name == "request" then
+            -- Special: check multiple possible request locations
+            found = found 
+                or (type(request) == "function")
+                or (type(http_request) == "function")
+                or (syn ~= nil and type(syn.request) == "function")
+                or (http ~= nil and type(http.request) == "function")
+        end
+        if entry.name == "debug" then
+            found = type(debug) == "table" and type(debug.info) == "function"
+        end
+        if found then
             passed = passed + 1
+            if resultLabels[entry.name] then
+                pcall(function()
+                    resultLabels[entry.name]:SetText("[✓] " .. entry.label)
+                end)
+            end
+        else
+            if resultLabels[entry.name] then
+                pcall(function()
+                    resultLabels[entry.name]:SetText("[✗] " .. entry.label)
+                end)
+            end
         end
     end
-    
-    if type(request) == "function" or type(http_request) == "function" or (syn and type(syn.request) == "function") or (http and type(http.request) == "function") then
-        if not pcall(function() return getgenv().request end) then
-            passed = passed + 1
-        end
-    end
-    
-    local name, ver = "Unknown", "1.0"
+
+    local name, ver = "Unknown", ""
     if type(identifyexecutor) == "function" then
         pcall(function() name, ver = identifyexecutor() end)
     end
-    
-    local score = (passed / #funcs) * 100
-    execStatusLabel:SetText(string.format("Executor: %s %s\nScore: %d/%d (%.1f%%)", tostring(name), tostring(ver), passed, #funcs, score))
-    
+    ver = ver and tostring(ver) or ""
+
+    local pct = math.floor((passed / total) * 100)
+    local rating = pct >= 90 and "Excellent" or pct >= 70 and "Good" or pct >= 50 and "Average" or "Poor"
+
+    execNameLabel:SetText(string.format("Executor: %s %s", name, ver))
+    execScoreLabel:SetText(string.format("Score: %d/%d (%d%%) - %s", passed, total, pct, rating))
+    execStatusLabel:SetText("Test completed!")
+
     Library:Notify({
-        Title = "Executor Test Finished",
-        Description = string.format("Passed %d out of %d checks.", passed, #funcs),
-        Time = 4,
+        Title = "Executor: " .. name,
+        Description = string.format("%d/%d checks passed (%d%%)", passed, total, pct),
+        Time = 5,
     })
-end)
+end
+
+ExecBox:AddButton("Re-Run Test", RunExecutorTest)
+
+-- Auto-run after short delay so UI is loaded first
+task.delay(1.5, RunExecutorTest)
 
 --------------------------------------------------------------------------------
 -- UI SETTINGS TAB

@@ -14,7 +14,8 @@ function RivalsAC:Init()
 
         local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 
-        -- Hook AnalyticsPipelineController functions in GC (original logic restored)
+        -- Part 1: Hook AnalyticsPipelineController functions in GC
+        -- This targets the MODULE script directly, no WaitForChild needed
         task.spawn(function()
             local hooked = 0
             for _, v in pairs(getgc(true)) do
@@ -24,8 +25,7 @@ function RivalsAC:Init()
                     end)
                     if ok and type(src) == "string" and string.find(src, "AnalyticsPipelineController") then
                         hooked += 1
-                        local oldfn
-                        oldfn = hookfunction(v, newcclosure(function(...)
+                        hookfunction(v, newcclosure(function(...)
                             return wait(9e9)
                         end))
                     end
@@ -33,22 +33,33 @@ function RivalsAC:Init()
             end
         end)
 
-        -- Hook Analytics RemoteEvent connections
-        -- Uses WaitForChild with a short timeout so it only applies when in Rivals
+        -- Part 2: Hook the RemoteEvent connections
+        -- Uses FindFirstChild polling — NEVER blocks the thread
         task.spawn(function()
-            local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
-            if not remotes then return end
-            local pipeline = remotes:WaitForChild("AnalyticsPipeline", 10)
-            if not pipeline then return end
-            local remote = pipeline:WaitForChild("RemoteEvent", 10)
-            if not remote or not remote.OnClientEvent then return end
-            for _, conn in pairs(getconnections(remote.OnClientEvent)) do
-                if conn and conn.Function then
-                    pcall(function()
-                        hookfunction(conn.Function, newcclosure(function(...) end))
-                    end)
+            local startTime = os.clock()
+            local timeout = 8 -- seconds to wait for Rivals to load its remotes
+            
+            while os.clock() - startTime < timeout do
+                local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                if remotes then
+                    local pipeline = remotes:FindFirstChild("AnalyticsPipeline")
+                    if pipeline then
+                        local remote = pipeline:FindFirstChild("RemoteEvent")
+                        if remote and remote.OnClientEvent then
+                            for _, conn in pairs(getconnections(remote.OnClientEvent)) do
+                                if conn and conn.Function then
+                                    pcall(function()
+                                        hookfunction(conn.Function, newcclosure(function(...) end))
+                                    end)
+                                end
+                            end
+                            return -- Done, hooked successfully
+                        end
+                    end
                 end
+                task.wait(0.5) -- Poll every 0.5s, no blocking whatsoever
             end
+            -- If we reach here, we're not in Rivals — silently give up
         end)
     end)
 

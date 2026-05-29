@@ -4,7 +4,8 @@ ESP_Module.Settings = {
     TargetPart = "Both", -- "Head", "HRP", "Both"
     HeadSize = 5,
     HRPSize = 5,
-    Transparency = 0.5,
+    Color = Color3.fromRGB(255, 0, 0),
+    LineThickness = 0.05,
     TargetPlayers = true,
     TargetNPCs = false,
     TeamCheck = true,
@@ -19,80 +20,115 @@ local RS = cloneref(game:GetService("RunService"))
 local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 local NPCManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/NPCManager.lua"))()
 
-local originalStates = setmetatable({}, {__mode = "k"})
+-- SelectionBox-based hitbox: PURELY visual, no physics changes, no lag
+local gethui = gethui or function() return cloneref(game:GetService("CoreGui")) end
+local holder = Instance.new("Folder")
+holder.Name = "Hitbox_Visuals"
+pcall(function() holder.Parent = gethui() end)
+if not holder.Parent then holder.Parent = workspace end
+
+local boxCache = {} -- [char] = {head = SelectionBox, hrp = SelectionBox}
 local connection
 
-local function SaveState(part)
-    if not part then return end
-    if not originalStates[part] then
-        originalStates[part] = {
-            Size = part.Size,
-            Transparency = part.Transparency,
-            CanCollide = part.CanCollide,
-            Massless = part.Massless
-        }
+local function CreateBox(part, size, color, lineThickness)
+    -- We use a SizeOffset SelectionBox trick:
+    -- Create an invisible BasePart scaled to the desired hitbox size, 
+    -- then parent a SelectionBox to it.
+    local hitPart = Instance.new("Part")
+    hitPart.Name = "HitboxVisualPart"
+    hitPart.Anchored = false
+    hitPart.CanCollide = false
+    hitPart.CanQuery = false
+    hitPart.CanTouch = false
+    hitPart.Massless = true
+    hitPart.Transparency = 1
+    hitPart.Size = Vector3.new(size, size, size)
+    hitPart.CFrame = part.CFrame
+    
+    -- Weld to the actual part so it moves with the character
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = part
+    weld.Part1 = hitPart
+    weld.Parent = hitPart
+    hitPart.Parent = holder
+
+    local box = Instance.new("SelectionBox")
+    box.Adornee = hitPart
+    box.Color3 = color
+    box.LineThickness = lineThickness
+    box.SurfaceTransparency = 0.6
+    box.SurfaceColor3 = color
+    box.Parent = holder
+
+    return { box = box, part = hitPart, weld = weld }
+end
+
+local function DestroyBoxEntry(entry)
+    if not entry then return end
+    if entry.box then entry.box:Destroy() end
+    if entry.part then entry.part:Destroy() end
+    -- weld is parented to part so it auto-destroys
+end
+
+local function ClearChar(char)
+    if boxCache[char] then
+        DestroyBoxEntry(boxCache[char].head)
+        DestroyBoxEntry(boxCache[char].hrp)
+        boxCache[char] = nil
     end
 end
 
-local function RestoreState(part)
-    if not part then return end
-    if originalStates[part] then
-        if part.Size ~= originalStates[part].Size then part.Size = originalStates[part].Size end
-        if part.Transparency ~= originalStates[part].Transparency then part.Transparency = originalStates[part].Transparency end
-        if part.CanCollide ~= originalStates[part].CanCollide then part.CanCollide = originalStates[part].CanCollide end
-        if part.Massless ~= originalStates[part].Massless then part.Massless = originalStates[part].Massless end
-        originalStates[part] = nil
+local function UpdateChar(char)
+    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+        ClearChar(char)
+        return
     end
-end
 
-local function ApplyHitbox(char)
-    if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then return end
-    
-    local isTeammate = false
-    if ESP_Module.Settings.TeamCheck and char:FindFirstChild("Humanoid") then
-        local plr = Players:GetPlayerFromCharacter(char)
-        if plr and IsTeammate(plr) then isTeammate = true end
+    local plr = Players:GetPlayerFromCharacter(char)
+    if ESP_Module.Settings.TeamCheck and plr and IsTeammate(plr) then
+        ClearChar(char)
+        return
     end
-    
+
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local head = char:FindFirstChild("Head")
     
-    local dist = 9e9
-    if hrp then dist = (Camera.CFrame.Position - hrp.Position).Magnitude end
-    
-    local isValid = not isTeammate and dist <= ESP_Module.Settings.MaxDistance
-    
-    if ESP_Module.Enabled and isValid then
-        -- Process HRP
-        if hrp then
-            SaveState(hrp)
-            if ESP_Module.Settings.TargetPart == "HRP" or ESP_Module.Settings.TargetPart == "Both" then
-                local tSize = Vector3.new(ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize, ESP_Module.Settings.HRPSize)
-                if hrp.Size ~= tSize then hrp.Size = tSize end
-                if hrp.Transparency ~= ESP_Module.Settings.Transparency then hrp.Transparency = ESP_Module.Settings.Transparency end
-                if hrp.CanCollide ~= false then hrp.CanCollide = false end
-                if hrp.Massless ~= true then hrp.Massless = true end
-            else
-                RestoreState(hrp)
-            end
+    local dist = hrp and (Camera.CFrame.Position - hrp.Position).Magnitude or 9e9
+    if dist > ESP_Module.Settings.MaxDistance then
+        ClearChar(char)
+        return
+    end
+
+    if not boxCache[char] then
+        boxCache[char] = {}
+    end
+
+    local settings = ESP_Module.Settings
+    local showHRP = settings.TargetPart == "HRP" or settings.TargetPart == "Both"
+    local showHead = settings.TargetPart == "Head" or settings.TargetPart == "Both"
+
+    -- HRP box
+    if showHRP and hrp then
+        if not boxCache[char].hrp then
+            boxCache[char].hrp = CreateBox(hrp, settings.HRPSize, settings.Color, settings.LineThickness)
         end
-        
-        -- Process Head
-        if head then
-            SaveState(head)
-            if ESP_Module.Settings.TargetPart == "Head" or ESP_Module.Settings.TargetPart == "Both" then
-                local tSize = Vector3.new(ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize, ESP_Module.Settings.HeadSize)
-                if head.Size ~= tSize then head.Size = tSize end
-                if head.Transparency ~= ESP_Module.Settings.Transparency then head.Transparency = ESP_Module.Settings.Transparency end
-                if head.CanCollide ~= false then head.CanCollide = false end
-                if head.Massless ~= true then head.Massless = true end
-            else
-                RestoreState(head)
-            end
-        end
+        boxCache[char].hrp.box.Visible = true
     else
-        if hrp then RestoreState(hrp) end
-        if head then RestoreState(head) end
+        if boxCache[char].hrp then
+            boxCache[char].hrp.box.Visible = false
+        end
+    end
+
+    -- Head box
+    if showHead and head then
+        if not boxCache[char].head then
+            boxCache[char].head = CreateBox(head, settings.HeadSize, settings.Color, settings.LineThickness)
+        end
+        boxCache[char].head.box.Visible = true
+    else
+        if boxCache[char].head then
+            boxCache[char].head.box.Visible = false
+        end
     end
 end
 
@@ -100,20 +136,33 @@ function ESP_Module:Toggle(state)
     self.Enabled = state
     if state then
         if not connection then
-            connection = RS.RenderStepped:Connect(function()
+            connection = RS.Heartbeat:Connect(function()
+                -- Build target list
                 local targets = {}
                 if ESP_Module.Settings.TargetPlayers then
                     for _, p in ipairs(Players:GetPlayers()) do
-                        if p.Character then table.insert(targets, p.Character) end
+                        if p ~= Player and p.Character then
+                            table.insert(targets, p.Character)
+                        end
                     end
                 end
                 if ESP_Module.Settings.TargetNPCs then
-                    for _, n in ipairs(NPCManager:GetNPCs()) do table.insert(targets, n) end
+                    for _, n in ipairs(NPCManager:GetNPCs()) do
+                        table.insert(targets, n)
+                    end
                 end
 
+                -- Build a set of active chars
+                local activeSet = {}
                 for _, char in ipairs(targets) do
-                    if char ~= Player.Character then
-                        ApplyHitbox(char)
+                    activeSet[char] = true
+                    UpdateChar(char)
+                end
+
+                -- Clean up chars that left
+                for char, _ in pairs(boxCache) do
+                    if not activeSet[char] then
+                        ClearChar(char)
                     end
                 end
             end)
@@ -123,14 +172,11 @@ function ESP_Module:Toggle(state)
             connection:Disconnect()
             connection = nil
         end
-        for part, _ in pairs(originalStates) do
-            RestoreState(part)
+        -- Clean up all visual boxes
+        for char, _ in pairs(boxCache) do
+            ClearChar(char)
         end
     end
 end
-
-Players.PlayerRemoving:Connect(function(plr)
-    -- Weak table automatically handles garbage collection when parts are destroyed
-end)
 
 return ESP_Module
