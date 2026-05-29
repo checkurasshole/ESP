@@ -14,6 +14,7 @@ function RivalsAC:Init()
 
         local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
 
+        -- Hook AnalyticsPipelineController functions in GC (original logic restored)
         task.spawn(function()
             local hooked = 0
             for _, v in pairs(getgc(true)) do
@@ -32,12 +33,14 @@ function RivalsAC:Init()
             end
         end)
 
+        -- Hook Analytics RemoteEvent connections
+        -- Uses WaitForChild with a short timeout so it only applies when in Rivals
         task.spawn(function()
-            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            local remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
             if not remotes then return end
-            local pipeline = remotes:FindFirstChild("AnalyticsPipeline")
+            local pipeline = remotes:WaitForChild("AnalyticsPipeline", 10)
             if not pipeline then return end
-            local remote = pipeline:FindFirstChild("RemoteEvent")
+            local remote = pipeline:WaitForChild("RemoteEvent", 10)
             if not remote or not remote.OnClientEvent then return end
             for _, conn in pairs(getconnections(remote.OnClientEvent)) do
                 if conn and conn.Function then

@@ -330,26 +330,37 @@ UniversalACBox:AddToggle("UniversalACToggle", {
     end
 })
 
-GameACBox:AddButton("Rivals Bypass", function()
-    local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/AntiCheatBypass.lua"
-    local ok, mod = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    if ok and type(mod) == "table" and type(mod.Init) == "function" then
-        mod:Init()
-        Library:Notify({
-            Title = "Rivals Bypass",
-            Description = "Analytics pipeline hooked",
-            Time = 3,
-        })
-    else
-        Library:Notify({
-            Title = "Error",
-            Description = "Failed to load Rivals bypass",
-            Time = 5,
-        })
+local rivalsACLoaded = false
+
+GameACBox:AddToggle("RivalsACToggle", {
+    Text = "Rivals Bypass",
+    Default = false,
+    Tooltip = "Hooks Rivals AnalyticsPipeline anti-cheat (saves to config)",
+    Callback = function(Value)
+        if Value and not rivalsACLoaded then
+            local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/AntiCheatBypass.lua"
+            local ok, mod = pcall(function()
+                return loadstring(game:HttpGet(url))()
+            end)
+            if ok and type(mod) == "table" and type(mod.Init) == "function" then
+                mod:Init()
+                rivalsACLoaded = true
+                Library:Notify({
+                    Title = "Rivals Bypass",
+                    Description = "Analytics pipeline hooked",
+                    Time = 3,
+                })
+            else
+                Library:Notify({
+                    Title = "Error",
+                    Description = "Failed to load Rivals bypass",
+                    Time = 5,
+                })
+                Toggles.RivalsACToggle:SetValue(false)
+            end
+        end
     end
-end)
+})
 
 --------------------------------------------------------------------------------
 -- UI SETTINGS TAB
