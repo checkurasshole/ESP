@@ -20,22 +20,19 @@ local RS = cloneref(game:GetService("RunService"))
 local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
 local NPCManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/NPCManager.lua"))()
 
--- SelectionBox-based hitbox: PURELY visual, no physics changes, no lag
+-- Container in hidden UI so it doesn't show up in CoreGui scans
 local gethui = gethui or function() return cloneref(game:GetService("CoreGui")) end
 local holder = Instance.new("Folder")
 holder.Name = "Hitbox_Visuals"
 pcall(function() holder.Parent = gethui() end)
 if not holder.Parent then holder.Parent = workspace end
 
-local boxCache = {} -- [char] = {head = SelectionBox, hrp = SelectionBox}
+-- boxCache[char] = { head = {box, part}, hrp = {box, part}, mode = "Head"/"HRP"/"Both" }
+local boxCache = {}
 local connection
 
-local function CreateBox(part, size, color, lineThickness)
-    -- We use a SizeOffset SelectionBox trick:
-    -- Create an invisible BasePart scaled to the desired hitbox size, 
-    -- then parent a SelectionBox to it.
+local function CreateBox(part, size, color, thickness)
     local hitPart = Instance.new("Part")
-    hitPart.Name = "HitboxVisualPart"
     hitPart.Anchored = false
     hitPart.CanCollide = false
     hitPart.CanQuery = false
@@ -44,38 +41,57 @@ local function CreateBox(part, size, color, lineThickness)
     hitPart.Transparency = 1
     hitPart.Size = Vector3.new(size, size, size)
     hitPart.CFrame = part.CFrame
-    
-    -- Weld to the actual part so it moves with the character
+    hitPart.Parent = holder
+
     local weld = Instance.new("WeldConstraint")
     weld.Part0 = part
     weld.Part1 = hitPart
     weld.Parent = hitPart
-    hitPart.Parent = holder
 
     local box = Instance.new("SelectionBox")
     box.Adornee = hitPart
     box.Color3 = color
-    box.LineThickness = lineThickness
-    box.SurfaceTransparency = 0.6
+    box.LineThickness = thickness
+    box.SurfaceTransparency = 0.7
     box.SurfaceColor3 = color
     box.Parent = holder
 
-    return { box = box, part = hitPart, weld = weld }
+    return { box = box, part = hitPart }
 end
 
-local function DestroyBoxEntry(entry)
+local function DestroyEntry(entry)
     if not entry then return end
-    if entry.box then entry.box:Destroy() end
-    if entry.part then entry.part:Destroy() end
-    -- weld is parented to part so it auto-destroys
+    pcall(function() entry.box:Destroy() end)
+    pcall(function() entry.part:Destroy() end)
 end
 
 local function ClearChar(char)
-    if boxCache[char] then
-        DestroyBoxEntry(boxCache[char].head)
-        DestroyBoxEntry(boxCache[char].hrp)
+    local cached = boxCache[char]
+    if cached then
+        DestroyEntry(cached.head)
+        DestroyEntry(cached.hrp)
         boxCache[char] = nil
     end
+end
+
+local function RebuildChar(char)
+    -- Always destroy old boxes before rebuilding
+    ClearChar(char)
+
+    local s = ESP_Module.Settings
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
+
+    local entry = { mode = s.TargetPart }
+
+    if (s.TargetPart == "HRP" or s.TargetPart == "Both") and hrp then
+        entry.hrp = CreateBox(hrp, s.HRPSize, s.Color, s.LineThickness)
+    end
+    if (s.TargetPart == "Head" or s.TargetPart == "Both") and head then
+        entry.head = CreateBox(head, s.HeadSize, s.Color, s.LineThickness)
+    end
+
+    boxCache[char] = entry
 end
 
 local function UpdateChar(char)
@@ -91,44 +107,31 @@ local function UpdateChar(char)
     end
 
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    local head = char:FindFirstChild("Head")
-    
     local dist = hrp and (Camera.CFrame.Position - hrp.Position).Magnitude or 9e9
     if dist > ESP_Module.Settings.MaxDistance then
         ClearChar(char)
         return
     end
 
-    if not boxCache[char] then
-        boxCache[char] = {}
+    local cached = boxCache[char]
+    local s = ESP_Module.Settings
+
+    -- If no cache exists OR the TargetPart mode changed, rebuild from scratch
+    if not cached or cached.mode ~= s.TargetPart then
+        RebuildChar(char)
+        return
     end
 
-    local settings = ESP_Module.Settings
-    local showHRP = settings.TargetPart == "HRP" or settings.TargetPart == "Both"
-    local showHead = settings.TargetPart == "Head" or settings.TargetPart == "Both"
-
-    -- HRP box
-    if showHRP and hrp then
-        if not boxCache[char].hrp then
-            boxCache[char].hrp = CreateBox(hrp, settings.HRPSize, settings.Color, settings.LineThickness)
-        end
-        boxCache[char].hrp.box.Visible = true
-    else
-        if boxCache[char].hrp then
-            boxCache[char].hrp.box.Visible = false
-        end
+    -- Just update color/thickness on existing boxes each frame (cheap)
+    if cached.hrp then
+        cached.hrp.box.Color3 = s.Color
+        cached.hrp.box.SurfaceColor3 = s.Color
+        cached.hrp.box.LineThickness = s.LineThickness
     end
-
-    -- Head box
-    if showHead and head then
-        if not boxCache[char].head then
-            boxCache[char].head = CreateBox(head, settings.HeadSize, settings.Color, settings.LineThickness)
-        end
-        boxCache[char].head.box.Visible = true
-    else
-        if boxCache[char].head then
-            boxCache[char].head.box.Visible = false
-        end
+    if cached.head then
+        cached.head.box.Color3 = s.Color
+        cached.head.box.SurfaceColor3 = s.Color
+        cached.head.box.LineThickness = s.LineThickness
     end
 end
 
@@ -137,7 +140,6 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.Heartbeat:Connect(function()
-                -- Build target list
                 local targets = {}
                 if ESP_Module.Settings.TargetPlayers then
                     for _, p in ipairs(Players:GetPlayers()) do
@@ -152,15 +154,14 @@ function ESP_Module:Toggle(state)
                     end
                 end
 
-                -- Build a set of active chars
                 local activeSet = {}
                 for _, char in ipairs(targets) do
                     activeSet[char] = true
                     UpdateChar(char)
                 end
 
-                -- Clean up chars that left
-                for char, _ in pairs(boxCache) do
+                -- Remove boxes for chars no longer in the target list
+                for char in pairs(boxCache) do
                     if not activeSet[char] then
                         ClearChar(char)
                     end
@@ -172,10 +173,10 @@ function ESP_Module:Toggle(state)
             connection:Disconnect()
             connection = nil
         end
-        -- Clean up all visual boxes
-        for char, _ in pairs(boxCache) do
+        for char in pairs(boxCache) do
             ClearChar(char)
         end
+        table.clear(boxCache)
     end
 end
 
