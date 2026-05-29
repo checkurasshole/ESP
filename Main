@@ -20,9 +20,10 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
+	ESP = Window:AddTab("ESP Visuals", "eye"),
 	Aimbot = Window:AddTab("Aimbot", "crosshair"),
-	ESP = Window:AddTab("ESP Options", "eye"),
 	Misc = Window:AddTab("Misc", "shield"),
+	Executor = Window:AddTab("Executor", "terminal"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -94,7 +95,17 @@ for _, name in ipairs(espScripts) do
 				return
 			end
 			if loadedModules[name] and type(loadedModules[name].Toggle) == "function" then
-				loadedModules[name]:Toggle(Value)
+				if loadedModules[name].Settings and loadedModules[name].Settings.TargetPlayers ~= nil then
+					loadedModules[name].Settings.TargetPlayers = Value
+					local npcSetting = Toggles["NPC" .. name .. "Toggle"] and Toggles["NPC" .. name .. "Toggle"].Value or false
+					if Value or npcSetting then
+						loadedModules[name]:Toggle(true)
+					else
+						loadedModules[name]:Toggle(false)
+					end
+				else
+					loadedModules[name]:Toggle(Value)
+				end
 			end
 		end,
 	})
@@ -128,6 +139,34 @@ for _, name in ipairs(espScripts) do
 			end,
 		})
 	end
+end
+
+--------------------------------------------------------------------------------
+-- NPC VISUALS
+--------------------------------------------------------------------------------
+local NPCBox = Tabs.ESP:AddRightGroupbox("NPC Visuals", "users")
+
+local npcESPList = { "Chams", "Name", "Hitbox" }
+for _, name in ipairs(npcESPList) do
+    NPCBox:AddToggle("NPC" .. name .. "Toggle", {
+        Text = name .. " (NPCs)",
+        Default = false,
+        Tooltip = "Enable " .. name .. " ESP for NPCs",
+        Callback = function(Value)
+            if loadedModules[name] and loadedModules[name].Settings then
+                loadedModules[name].Settings.TargetNPCs = Value
+                -- If the module isn't toggled on globally, we might need to enable it
+                -- But usually they share the main toggle. So if Main Toggle is off, this does nothing until main is on.
+                -- To fix this, we can force Toggle if either Player or NPC is true.
+                local playerSetting = Toggles[name .. "Toggle"] and Toggles[name .. "Toggle"].Value or false
+                if Value or playerSetting then
+                    loadedModules[name]:Toggle(true)
+                else
+                    loadedModules[name]:Toggle(false)
+                end
+            end
+        end,
+    })
 end
 
 --------------------------------------------------------------------------------
@@ -286,6 +325,12 @@ AimFOVBox:AddToggle("AimbotTeamCheck", {
     Callback = function(Value) updateAimbotSetting("TeamCheck", Value) end
 })
 
+AimFOVBox:AddToggle("AimbotTargetNPCs", {
+    Text = "Target NPCs",
+    Default = false,
+    Callback = function(Value) updateAimbotSetting("TargetNPCs", Value) end
+})
+
 AimFOVBox:AddToggle("AimbotWallCheck", {
     Text = "Wall Check",
     Default = true,
@@ -361,6 +406,50 @@ GameACBox:AddToggle("RivalsACToggle", {
         end
     end
 })
+
+--------------------------------------------------------------------------------
+-- EXECUTOR TEST TAB
+--------------------------------------------------------------------------------
+local ExecBox = Tabs.Executor:AddLeftGroupbox("Capabilities", "terminal")
+
+local execStatusLabel = ExecBox:AddLabel("Status: Waiting to test...")
+
+ExecBox:AddButton("Run UNC Test", function()
+    local funcs = {
+        "getgenv", "getrenv", "getrawmetatable", "hookmetamethod", "hookfunction",
+        "readfile", "writefile", "listfiles", "isfolder", "makefolder",
+        "request", "http_request", "setclipboard", "getnamecallmethod", "setnamecallmethod",
+        "identifyexecutor", "getthreadidentity", "setthreadidentity", "gethui",
+        "cloneref", "getconnections", "firesignal", "require", "getgc", "islclosure"
+    }
+    local passed = 0
+    for _, f in ipairs(funcs) do
+        local ok, res = pcall(function() return getgenv()[f] or getfenv()[f] or shared[f] end)
+        if ok and type(res) == "function" then
+            passed = passed + 1
+        end
+    end
+    
+    if type(request) == "function" or type(http_request) == "function" or (syn and type(syn.request) == "function") or (http and type(http.request) == "function") then
+        if not pcall(function() return getgenv().request end) then
+            passed = passed + 1
+        end
+    end
+    
+    local name, ver = "Unknown", "1.0"
+    if type(identifyexecutor) == "function" then
+        pcall(function() name, ver = identifyexecutor() end)
+    end
+    
+    local score = (passed / #funcs) * 100
+    execStatusLabel:SetText(string.format("Executor: %s %s\nScore: %d/%d (%.1f%%)", tostring(name), tostring(ver), passed, #funcs, score))
+    
+    Library:Notify({
+        Title = "Executor Test Finished",
+        Description = string.format("Passed %d out of %d checks.", passed, #funcs),
+        Time = 4,
+    })
+end)
 
 --------------------------------------------------------------------------------
 -- UI SETTINGS TAB

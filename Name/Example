@@ -4,6 +4,8 @@ ESP_Module.Settings = {
     Color = Color3.fromRGB(255, 255, 255),
     Size = 13,
     TeamCheck = true,
+    TargetPlayers = true,
+    TargetNPCs = false,
     TeamColor = false,
     ShowDistance = true,
     ShowHealth = true,
@@ -17,6 +19,7 @@ local Player = cloneref(Players.LocalPlayer)
 local Camera = cloneref(workspace.CurrentCamera)
 local RS = cloneref(game:GetService("RunService"))
 local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
+local NPCManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/NPCManager.lua"))()
 
 local function HealthBarLerp(t)
     -- t=0 is dead (red), t=1 is full HP (green)
@@ -51,9 +54,17 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, v in ipairs(Players:GetPlayers()) do
+                local targets = {}
+                if ESP_Module.Settings.TargetPlayers then
+                    for _, p in ipairs(Players:GetPlayers()) do table.insert(targets, p) end
+                end
+                if ESP_Module.Settings.TargetNPCs then
+                    for _, n in ipairs(NPCManager:GetNPCs()) do table.insert(targets, n) end
+                end
+
+                for _, v in ipairs(targets) do
                     if v ~= Player then
-                        local char = v.Character
+                        local char = typeof(v) == "Instance" and v:IsA("Model") and v or v.Character
                         if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") and char.Humanoid.Health > 0 then
                             local rootPart = char.HumanoidRootPart
                             local head = char:FindFirstChild("Head") or rootPart
@@ -90,7 +101,7 @@ function ESP_Module:Toggle(state)
                                 end
                                 
                                 -- Name & Distance
-                                local nameStr = v.Name
+                                local nameStr = typeof(v) == "Instance" and v:IsA("Model") and v.Name or v.Name
                                 if ESP_Module.Settings.ShowDistance then
                                     nameStr = nameStr .. " [" .. math.floor(dist) .. "m]"
                                 end

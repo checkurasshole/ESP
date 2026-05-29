@@ -6,6 +6,8 @@ ESP_Module.Settings = {
     OutlineColor = Color3.fromRGB(255, 255, 255),
     OutlineTransparency = 0,
     TeamCheck = true,
+    TargetPlayers = true,
+    TargetNPCs = false,
     MaxDistance = 500,
 }
 
@@ -16,6 +18,7 @@ local RS = cloneref(game:GetService("RunService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local Camera = cloneref(workspace.CurrentCamera)
 local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
+local NPCManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/NPCManager.lua"))()
 
 local cache = {}
 local connection
@@ -44,9 +47,17 @@ function ESP_Module:Toggle(state)
     if state then
         if not connection then
             connection = RS.RenderStepped:Connect(function()
-                for _, plr in ipairs(Players:GetPlayers()) do
+                local targets = {}
+                if ESP_Module.Settings.TargetPlayers then
+                    for _, p in ipairs(Players:GetPlayers()) do table.insert(targets, p) end
+                end
+                if ESP_Module.Settings.TargetNPCs then
+                    for _, n in ipairs(NPCManager:GetNPCs()) do table.insert(targets, n) end
+                end
+
+                for _, plr in ipairs(targets) do
                     if plr ~= Player then
-                        local char = plr.Character
+                        local char = typeof(plr) == "Instance" and plr:IsA("Model") and plr or plr.Character
                         if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char.PrimaryPart then
                             local dist = (Camera.CFrame.Position - char.PrimaryPart.Position).Magnitude
                             if dist <= ESP_Module.Settings.MaxDistance then

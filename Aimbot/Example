@@ -5,6 +5,8 @@ Aimbot.Settings = {
     TargetPart = "Head",
     Smoothness = 2, -- 1 to 20
     TeamCheck = true,
+    TargetPlayers = true,
+    TargetNPCs = false,
     AlwaysOn = false,
     WallCheck = true,
     ShowFOV = true,
@@ -42,28 +44,40 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
+local Mouse = cloneref(LocalPlayer:GetMouse())
 local IsTeammate = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/IsTeammate.lua"))()
+local NPCManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/checkurasshole/ESP/main/NPCManager.lua"))()
 
 -- Exact Targeting Loop
 local function GetClosestTarget()
     local Target, Closest = nil, Aimbot.Settings.FOVRadius
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-            
+    local targets = {}
+    if Aimbot.Settings.TargetPlayers then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character then table.insert(targets, p.Character) end
+        end
+    end
+    if Aimbot.Settings.TargetNPCs then
+        for _, n in ipairs(NPCManager:GetNPCs()) do table.insert(targets, n) end
+    end
 
-            if Aimbot.Settings.TeamCheck and IsTeammate(p) then continue end
+    for _, char in ipairs(targets) do
+        if char ~= LocalPlayer.Character and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
             
-            local Pos, OnScreen = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+            local plr = Players:GetPlayerFromCharacter(char)
+            if Aimbot.Settings.TeamCheck and plr and IsTeammate(plr) then continue end
+            
+            local Pos, OnScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
             if OnScreen then
                 if Aimbot.Settings.WallCheck then
-                    local Parts = Camera:GetPartsObscuringTarget({p.Character.HumanoidRootPart.Position}, {LocalPlayer.Character, p.Character})
+                    local Parts = Camera:GetPartsObscuringTarget({char.HumanoidRootPart.Position}, {LocalPlayer.Character, char})
                     if #Parts > 0 then continue end
                 end
 
                 local Dist = (Vector2.new(Pos.X, Pos.Y) - UserInputService:GetMouseLocation()).Magnitude
                 if Dist < Closest then
                     Closest = Dist
-                    Target = p
+                    Target = char
                 end
             end
         end
