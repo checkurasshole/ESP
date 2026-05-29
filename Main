@@ -1,16 +1,8 @@
+local cloneref = cloneref or function(...) return ... end
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
 local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
-
--- Auto-Execute Anti-Cheat Bypass
-pcall(function()
-    local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/AntiCheatBypass.lua"
-    local module = loadstring(game:HttpGet(url))()
-    if type(module) == "table" and type(module.Init) == "function" then
-        module:Init()
-    end
-end)
 
 local Options = Library.Options
 local Toggles = Library.Toggles
@@ -30,6 +22,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
 	Aimbot = Window:AddTab("Aimbot", "crosshair"),
 	ESP = Window:AddTab("ESP Options", "eye"),
+	Misc = Window:AddTab("Misc", "shield"),
 	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -45,7 +38,6 @@ local espScripts = {
 	"Arrows", "Chams", "Name", "Radar", "Skeleton", "Tracers", "ViewTracer", "Health", "Hitbox"
 }
 
--- ESPs that support team check
 local teamSupport = {
 	Arrows = true, Chams = true, Name = true,
 	Tracers = true, ViewTracer = true, Radar = true, Hitbox = true,
@@ -123,9 +115,6 @@ RightGroupBox:AddSlider("ESPDistanceLimit", {
 	end
 })
 
-
-
--- Team check toggles (right side) - default ON
 for _, name in ipairs(espScripts) do
 	if teamSupport[name] then
 		RightGroupBox:AddToggle(name .. "TeamCheck", {
@@ -262,14 +251,12 @@ AimSettingsBox:AddSlider("AimbotSmoothness", {
     Callback = function(Value) updateAimbotSetting("Smoothness", Value) end
 })
 
--- Need to map readable key names to Enum names or generic strings
 AimSettingsBox:AddLabel("Aim Key"):AddKeyPicker("AimbotKey", {
     Default = "MouseButton2",
     NoUI = true,
     Text = "Aim Key",
-    Callback = function() end, -- We don't use this callback, the module listens to UIS directly
+    Callback = function() end,
     ChangedCallback = function(New) 
-        -- KeyPicker returns the Name of the key, e.g. "MouseButton2", "E", "LeftShift"
         updateAimbotSetting("AimKey", New.Name)
     end
 })
@@ -304,6 +291,65 @@ AimFOVBox:AddToggle("AimbotWallCheck", {
     Default = true,
     Callback = function(Value) updateAimbotSetting("WallCheck", Value) end
 })
+
+--------------------------------------------------------------------------------
+-- MISC TAB (Anti-Cheat)
+--------------------------------------------------------------------------------
+local UniversalACBox = Tabs.Misc:AddLeftGroupbox("Universal Anti-Cheat", "shield")
+local GameACBox = Tabs.Misc:AddRightGroupbox("Game-Specific Bypass", "zap")
+
+local universalACLoaded = false
+
+UniversalACBox:AddToggle("UniversalACToggle", {
+    Text = "Enable Universal AC",
+    Default = false,
+    Tooltip = "Anti-Kick + Error Silencing + Log Silencing (saves to config)",
+    Callback = function(Value)
+        if Value and not universalACLoaded then
+            local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/UniversalAC.lua"
+            local ok, mod = pcall(function()
+                return loadstring(game:HttpGet(url))()
+            end)
+            if ok and type(mod) == "table" and type(mod.Init) == "function" then
+                mod:Init()
+                universalACLoaded = true
+                Library:Notify({
+                    Title = "Universal AC",
+                    Description = "Anti-Kick + Error/Log Silencing active",
+                    Time = 3,
+                })
+            else
+                Library:Notify({
+                    Title = "Error",
+                    Description = "Failed to load Universal AC",
+                    Time = 5,
+                })
+                Toggles.UniversalACToggle:SetValue(false)
+            end
+        end
+    end
+})
+
+GameACBox:AddButton("Rivals Bypass", function()
+    local url = "https://raw.githubusercontent.com/checkurasshole/ESP/main/AntiCheatBypass.lua"
+    local ok, mod = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    if ok and type(mod) == "table" and type(mod.Init) == "function" then
+        mod:Init()
+        Library:Notify({
+            Title = "Rivals Bypass",
+            Description = "Analytics pipeline hooked",
+            Time = 3,
+        })
+    else
+        Library:Notify({
+            Title = "Error",
+            Description = "Failed to load Rivals bypass",
+            Time = 5,
+        })
+    end
+end)
 
 --------------------------------------------------------------------------------
 -- UI SETTINGS TAB
@@ -347,10 +393,9 @@ end)
 --------------------------------------------------------------------------------
 -- FLOATING TOGGLE BUTTON (MOBILE/PC)
 --------------------------------------------------------------------------------
-local CoreGui = game:GetService("CoreGui")
+local CoreGui = cloneref(game:GetService("CoreGui"))
 local ToggleGui = Instance.new("ScreenGui")
 ToggleGui.Name = "CombowickToggleUI"
--- Use a protected parent if possible to avoid detection, otherwise CoreGui
 local gethui = gethui or function() return CoreGui end
 ToggleGui.Parent = gethui()
 
@@ -366,7 +411,7 @@ ToggleBtn.TextSize = 14
 ToggleBtn.Text = "Menu"
 ToggleBtn.AutoButtonColor = true
 ToggleBtn.Active = true
-ToggleBtn.Draggable = true -- Allows mobile players to drag it around the screen
+ToggleBtn.Draggable = true
 
 ToggleBtn.MouseButton1Click:Connect(function()
     Library:Toggle()
