@@ -1,71 +1,120 @@
+-- Rivals Anti-Cheat Bypass
+-- Based on: github.com/swish-hub/rivals-ac (BETA)
+-- Integrated into combowick ESP framework
+
 local cloneref = cloneref or function(...) return ... end
-local Players = cloneref(game:GetService("Players"))
-local LocalPlayer = cloneref(Players.LocalPlayer)
 
 local RivalsAC = {}
 
 function RivalsAC:Init()
-    local success, err = pcall(function()
-        assert(getgc, "executor missing required function getgc")
-        assert(debug and debug.info, "executor missing required function debug.info")
-        assert(hookfunction, "executor missing required function hookfunction")
-        assert(getconnections, "executor missing required function getconnections")
-        assert(newcclosure, "executor missing required function newcclosure")
+    -- Verify executor has the required capabilities
+    if not (type(getgc) == "function" and type(hookfunction) == "function" and type(newcclosure) == "function") then
+        warn("[RivalsAC] Executor missing required functions (getgc, hookfunction, newcclosure). Bypass skipped.")
+        return false
+    end
+    if not (type(debug) == "table" and type(debug.info) == "function" and type(debug.traceback) == "function") then
+        warn("[RivalsAC] Executor missing debug library. Bypass skipped.")
+        return false
+    end
 
-        local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+    local hooked = 0
+    local errors = 0
 
-        -- Part 1: Hook AnalyticsPipelineController functions in GC
-        -- This targets the MODULE script directly, no WaitForChild needed
-        task.spawn(function()
-            local hooked = 0
-            for _, v in pairs(getgc(true)) do
-                if typeof(v) == "function" then
-                    local ok, src = pcall(function()
-                        return debug.info(v, "s")
-                    end)
-                    if ok and type(src) == "string" and string.find(src, "AnalyticsPipelineController") then
-                        hooked += 1
-                        hookfunction(v, newcclosure(function(...)
-                            return wait(9e9)
-                        end))
+    -- ========================================================================
+    -- LAYER 1: Hook setmetatable in the Roblox environment
+    -- Rivals' LocalScript3 and MiscellaneousController use weak tables (__mode = "kv")
+    -- to track players/objects. We intercept those calls and return a dummy table,
+    -- making the AC unable to properly track anything.
+    -- ========================================================================
+    pcall(function()
+        local oldSetmetatable
+        oldSetmetatable = hookfunction(getrenv().setmetatable, newcclosure(function(Table, Metatable)
+            if Metatable and type(Metatable) == "table" and rawget(Metatable, "__mode") == "kv" then
+                local ok, trace = pcall(debug.traceback)
+                if ok and type(trace) == "string" then
+                    if trace:find("LocalScript3") or trace:find("MiscellaneousController") then
+                        -- Return a useless dummy table so AC can't track anything
+                        return oldSetmetatable({1, 2, 3}, {})
                     end
                 end
             end
-        end)
-
-        -- Part 2: Hook the RemoteEvent connections
-        -- Uses FindFirstChild polling — NEVER blocks the thread
-        task.spawn(function()
-            local startTime = os.clock()
-            local timeout = 8 -- seconds to wait for Rivals to load its remotes
-            
-            while os.clock() - startTime < timeout do
-                local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-                if remotes then
-                    local pipeline = remotes:FindFirstChild("AnalyticsPipeline")
-                    if pipeline then
-                        local remote = pipeline:FindFirstChild("RemoteEvent")
-                        if remote and remote.OnClientEvent then
-                            for _, conn in pairs(getconnections(remote.OnClientEvent)) do
-                                if conn and conn.Function then
-                                    pcall(function()
-                                        hookfunction(conn.Function, newcclosure(function(...) end))
-                                    end)
-                                end
-                            end
-                            return -- Done, hooked successfully
-                        end
-                    end
-                end
-                task.wait(0.5) -- Poll every 0.5s, no blocking whatsoever
-            end
-            -- If we reach here, we're not in Rivals — silently give up
-        end)
+            return oldSetmetatable(Table, Metatable)
+        end))
+        hooked = hooked + 1
     end)
 
-    if not success then
-        warn("Rivals AC Bypass Failed: " .. tostring(err))
-    end
+    -- ========================================================================
+    -- LAYER 2: Filter getgc to hide LocalScript3 / MiscellaneousController functions
+    -- The AC uses getgc to find and inspect executor functions.
+    -- We filter the results so AC scripts are invisible to any getgc calls.
+    -- ========================================================================
+    pcall(function()
+        local oldGetgc = getgc
+        getgc = function(...)
+            local gc = oldGetgc(...)
+            local filtered = {}
+            for _, v in ipairs(gc) do
+                if typeof(v) == "function" then
+                    local ok, src = pcall(debug.info, v, "s")
+                    if ok and src and (src:find("LocalScript3") or src:find("MiscellaneousController")) then
+                        -- Hide this function from the AC's view
+                    else
+                        table.insert(filtered, v)
+                    end
+                else
+                    table.insert(filtered, v)
+                end
+            end
+            return filtered
+        end
+        hooked = hooked + 1
+    end)
+
+    -- ========================================================================
+    -- LAYER 3: Direct function hook — freeze all AC functions from those scripts
+    -- Walk the GC and hook any function originating from LocalScript3 or
+    -- MiscellaneousController to wait(9e9), effectively disabling them.
+    -- ========================================================================
+    pcall(function()
+        for _, v in ipairs(getgc(true)) do
+            if typeof(v) == "function" then
+                local ok, src = pcall(debug.info, v, "s")
+                if ok and type(src) == "string" then
+                    if src:find("LocalScript3") or src:find("MiscellaneousController") then
+                        pcall(function()
+                            hookfunction(v, newcclosure(function()
+                                return task.wait(9e9)
+                            end))
+                            hooked = hooked + 1
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+
+    -- ========================================================================
+    -- LAYER 4 (bonus): Block Kick metamethod on LocalPlayer
+    -- Even if AC bypasses layers 1-3, this prevents it from kicking you
+    -- ========================================================================
+    pcall(function()
+        local Players = cloneref(game:GetService("Players"))
+        local LocalPlayer = cloneref(Players.LocalPlayer)
+        local mt = getrawmetatable(game)
+        local old = mt.__namecall
+        setreadonly(mt, false)
+        mt.__namecall = newcclosure(function(self, ...)
+            local m = getnamecallmethod()
+            if self == LocalPlayer and (m == "Kick" or m == "kick") then
+                return -- Block kick silently
+            end
+            return old(self, ...)
+        end)
+        setreadonly(mt, true)
+        hooked = hooked + 1
+    end)
+
+    return hooked > 0
 end
 
 return RivalsAC
